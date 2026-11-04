@@ -19,5 +19,6 @@ This file lists every skill in the kit that is copied or adapted from an upstrea
 | `aw-handoff` | Matt Pocock, [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/handoff` | [`d1478fc`](https://github.com/mattpocock/skills/tree/d1478fcb140db0b93c0c8df17bcfd311844749d0) (v1.3.2) | copy |
 | `aw-source-driven-development` | Addy Osmani, [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills) `skills/source-driven-development` | [`301b02b`](https://github.com/addyosmani/agent-skills/tree/301b02b12bff98e4688e6984af6556802322bbde) | copy |
 | `aw-security-and-hardening` | Addy Osmani, [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills) `skills/security-and-hardening`, plus the shared `references/security-checklist.md` moved into the copy's `references/` | [`301b02b`](https://github.com/addyosmani/agent-skills/tree/301b02b12bff98e4688e6984af6556802322bbde) | copy |
+| `aw-check-spec` | Addy Osmani, [`addyosmani/agent-skills`](https://github.com/addyosmani/agent-skills) `skills/spec-driven-development`: the Boundaries section of the spec template (Always / Ask first / Never) | [`301b02b`](https://github.com/addyosmani/agent-skills/tree/301b02b12bff98e4688e6984af6556802322bbde) | adaptation |
 
 Copies are pinned in `upstreams.json` and installed by `node scripts/sync-upstreams.mjs install`.

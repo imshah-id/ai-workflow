@@ -29,6 +29,7 @@
     "./skills/aw-writing-for-agents",
     "./skills/aw-handoff",
     "./skills/aw-source-driven-development",
-    "./skills/aw-security-and-hardening"
+    "./skills/aw-security-and-hardening",
+    "./skills/aw-check-spec"
   ]
 }
