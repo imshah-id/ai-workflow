@@ -6,5 +6,6 @@ This file lists every skill in the kit that is copied or adapted from an upstrea
 
 | Skill | Upstream | Pin | Kind |
 | ----- | -------- | --- | ---- |
+| `aw-grilling` | Matt Pocock, [`mattpocock/skills`](https://github.com/mattpocock/skills) `skills/productivity/grilling` | [`d1478fc`](https://github.com/mattpocock/skills/tree/d1478fcb140db0b93c0c8df17bcfd311844749d0) (v1.3.2) | copy |
 
-No skill has been copied or adapted yet.
+Copies are pinned in `upstreams.json` and installed by `node scripts/sync-upstreams.mjs install`.
