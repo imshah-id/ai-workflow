@@ -5,6 +5,7 @@
 - Latest commit on `main`: `301b02b12bff98e4688e6984af6556802322bbde`, committed 2026-11-01T19:24:49Z ("Merge #736: validate review findings against code and baseline"). Tag `0.6.15` plus 2 commits.
 - Candidate pin `301b02bbde…`: **does not resolve.** No full SHA was found (see section 5).
 - Recommended pin: `301b02b12bff98e4688e6984af6556802322bbde` (the latest commit). **This is not the candidate as given**, because the candidate could not be resolved. All permalinks below point at this commit.
+- Ticket: [#2](https://github.com/samfaina/ai-workflow/issues/2)
 - Date researched: 2026-11-04
 - Sources: upstream repo only (GitHub REST API via `gh api`, plus a blobless clone of the repo for reading files and running `git grep`. No scripts were run.)
 
@@ -166,6 +167,8 @@ Upstream says per-skill installs drop the repo-root `references/` directory. [`R
 [`docs/skill-anatomy.md#L120-L126`](https://github.com/addyosmani/agent-skills/blob/301b02b12bff98e4688e6984af6556802322bbde/docs/skill-anatomy.md#L120-L126) gives the same rationale ("Checklists used by more than one skill … live in `references/` at the repository root, deliberately *not* inside any skill directory").
 
 Note on the path strings: the `../../references/security-checklist.md` strings in SKILL.md point two levels above the skill folder. Copying the checklist into a `references/` directory inside the skill, as the README suggests, does not make those strings resolve unless they are edited. That conclusion comes from the path text alone. Status of upstream issue #361 was not checked.
+
+> _Bears on ADR 0001, ADR 0010 and ADR 0015:_ ADR 0010 lists `aw-security-and-hardening` as a copy, and ADR 0001 and ADR 0015 allow a copy's text to change only by the mechanical `aw-` rename. Copied that way, the three `../../references/security-checklist.md` strings in `SKILL.md` and the three `../../../references/security-checklist.md` strings in `references/hardening-patterns.md` point outside the folder that `npx skills` installs (ADR 0002). Making them resolve means either shipping the checklist inside the folder and editing the paths (which makes the skill an adaptation, not a copy) or accepting the gap upstream documents. This is for the ticket that writes `upstreams.json`. This research does not decide it.
 
 ## 3. Spec ideas
 
@@ -354,6 +357,8 @@ Output template, [`#L44-L65`](https://github.com/addyosmani/agent-skills/blob/30
 - [ ] Rollback path exists for anything risky (see `shipping-and-launch`)
 - [ ] The human has reviewed and approved before merge or deploy
 ```
+
+> _Differs from ADR 0013:_ the last item makes human review before merge a requirement. ADR 0013 rejected human PR review as a fixed gate. Quoted here as evidence only.
 
 ### Preparing a change for review: `skills/git-workflow-and-versioning/SKILL.md`
 
