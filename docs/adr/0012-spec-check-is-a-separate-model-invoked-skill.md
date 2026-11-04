@@ -1,0 +1,5 @@
+# The spec check is its own model-invoked skill, with Node as a soft dependency
+
+Spec validation is a script, `scripts/check-spec.mjs`, inside a dedicated kit skill, `aw-check-spec`, that the model can invoke. The checks are mechanical and the model does them poorly: frontmatter and `status` values, required sections, unique `AC-n`, a Traceability row per criterion, no open `BLOCKS:` from `approved` on, and resolvable evidence at `implemented`. The script cannot live in `aw-spec`, because `aw-build`, `aw-verify` and `aw-ship` also need it: `aw-spec` is user-invoked and cannot be called by other skills, and `npx skills` installs each skill folder separately, so one skill cannot reach into another's files.
+
+Node is a soft dependency. When `node` is missing, `aw-check-spec` reports "check-spec not run: Node not found", walks the same checklist by reading, and marks the result as not script-verified, never as passed. `aw-setup` warns up front when Node is missing and names the lost guarantee. The spec check is not a git hook (ADR 0009).

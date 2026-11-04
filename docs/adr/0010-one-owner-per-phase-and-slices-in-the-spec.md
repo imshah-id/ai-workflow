@@ -1,0 +1,25 @@
+# One owner per phase; slices live in the spec
+
+Each phase of the workflow is owned by exactly one kit skill and has exactly one artifact. Where upstreams overlap, the kit merges them into that one owner instead of shipping both:
+
+| Phase owner | Draws on | Artifact |
+| --- | --- | --- |
+| `aw-intake` | Own: picks the task's type and route and runs the type's pre-step | Route and type, reported in chat |
+| `aw-wayfinder` | Matt Pocock's `wayfinder` | Map and decision tickets in the tracker |
+| `aw-spec` | Pocock's `to-spec`, with grilling first; living-spec format with `AC-n` and Traceability | The spec |
+| `aw-slices` | Pocock's `to-tickets`: tracer bullets, blocking edges, expand–contract | The spec's slice plan |
+| `aw-build` | Own: one slice per call, with `aw-tdd` | Commits and the spec's Traceability |
+| `aw-verify` | pstack's evidence discipline (inspired) | `verify:` evidence in Traceability |
+| `aw-review` | Pocock's `code-review`, plus a security axis and a proven-defects rule | Review report: Spec, Standards and Security |
+| `aw-ship` | Pocock's `pr` | Review request body and the spec set to `implemented` |
+| `aw-retro` | Pocock's `retro`, plus a ladder of controls | Proposed controls |
+
+Phase-free copies sit outside the table: `aw-grilling`, `aw-grill-with-docs`, `aw-domain-modeling`, `aw-research`, `aw-prototype`, `aw-tdd`, `aw-diagnosing-bugs`, `aw-codebase-design`, `aw-improve-codebase-architecture`, `aw-writing-for-agents` and `aw-handoff` (from Pocock), and `aw-source-driven-development` and `aw-security-and-hardening` (from Addy Osmani). `aw-retro` points to `aw-improve-codebase-architecture` when an error class is best fixed at the architecture rung of its ladder.
+
+The slice plan lives in the spec. When the tracker allows it, `aw-slices` publishes each slice as a **mirror ticket**, and the slice remains the source of truth.
+
+## Considered Options
+
+- **Slices as tracker tickets** (`to-tickets`): rejected as the primary artifact. It would put the plan somewhere other than the spec, and repos without a tracker would have nowhere to keep it.
+- **Keep `triage`**: rejected. It grooms incoming issues from other people by writing to the tracker, which a personal kit does not need. The bug pre-step in `aw-intake` already covers its reproduction step.
+- **`implement-spec`'s parallel build** (a task graph, worktrees and a merger subagent): out of v1. `aw-build` does one slice per call, and building never triggers review: that phase belongs to `aw-review`.
