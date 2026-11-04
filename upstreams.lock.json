@@ -207,6 +207,46 @@
           }
         }
       }
+    },
+    "addyosmani": {
+      "repo": "https://github.com/addyosmani/agent-skills",
+      "commit": "301b02b12bff98e4688e6984af6556802322bbde",
+      "license": {
+        "path": "LICENSE",
+        "blob": "d67778ada6b9cda6227e9130da182c13e73c8b2e"
+      },
+      "skills": {
+        "source-driven-development": {
+          "path": "skills/source-driven-development",
+          "tree": "80f7db00d09fde82ceb383a5b11bb00781a4d4dc",
+          "files": {
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "fb94d0f36e2d4c53e6b507dd763d105b2e958623"
+            }
+          }
+        },
+        "security-and-hardening": {
+          "path": "skills/security-and-hardening",
+          "tree": "9fb34870625f80d5cac82625f388c0d81d3b525a",
+          "files": {
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "fc85325b50e72b935f2916dd74af12c650e9c7f4"
+            },
+            "references/hardening-patterns.md": {
+              "mode": "100644",
+              "blob": "ad1d8fe783a605fef5be622c02062626cc06a948"
+            }
+          },
+          "shared": {
+            "references/security-checklist.md": {
+              "mode": "100644",
+              "blob": "910fbff3ff3ee67e343ef308fe224f95edb5b5ce"
+            }
+          }
+        }
+      }
     }
   }
 }
