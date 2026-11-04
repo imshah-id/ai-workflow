@@ -9,9 +9,13 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { check as checkCopies, MANIFEST as UPSTREAMS_MANIFEST, readUpstreams } from './lib/upstreams.mjs';
-
-const PREFIX = 'aw-';
+import {
+  check as checkCopies,
+  MANIFEST as UPSTREAMS_MANIFEST,
+  PREFIX,
+  readJsonFile,
+  readUpstreams,
+} from './lib/upstreams.mjs';
 
 const kitDir = resolve(process.argv[2] ?? '.');
 if (!existsSync(kitDir) || !statSync(kitDir).isDirectory()) {
@@ -112,13 +116,8 @@ const MARKETPLACE_MANIFEST = '.claude-plugin/marketplace.json';
 
 // Parsed JSON, or a finding string when the file is missing or invalid.
 function readJson(dir, path) {
-  const full = join(dir, path);
-  if (!existsSync(full)) return { finding: `${path}: file is missing` };
-  try {
-    return { value: JSON.parse(readFileSync(full, 'utf8')) };
-  } catch (error) {
-    return { finding: `${path}: invalid JSON (${error.message})` };
-  }
+  const read = readJsonFile(dir, path);
+  return read.missing ? { finding: `${path}: file is missing` } : read;
 }
 
 // `./skills/aw-x/` and `skills\aw-x` both become `skills/aw-x`.
@@ -208,9 +207,10 @@ function checkLineEndings(dir) {
 }
 
 // NOTICE.md lists every copy with its upstream, pin and kind (ADR 0004).
-// An entry is a table row whose first cell is the copy's name, whose pin cell
-// holds at least the first seven characters of the pinned commit and whose
-// kind is `copy`.
+// An entry is a table row whose first cell is the copy's name, whose upstream
+// cell holds the upstream's `repo` from upstreams.json (usually as a link),
+// whose pin cell holds at least the first seven characters of the pinned
+// commit and whose kind is `copy`.
 function checkNotice(dir) {
   const { copies } = readUpstreams(dir);
   if (copies.length === 0) return [];
@@ -225,8 +225,11 @@ function checkNotice(dir) {
   for (const copy of copies) {
     const row = rows.find((cells) => cells[0].replace(/`/g, '') === copy.folder);
     const pin = copy.upstream.commit.slice(0, 7);
+    const repo = copy.upstream.repo.replace(/\/+$/, '').replace(/\.git$/, '');
     if (!row) {
       findings.push(`NOTICE.md: no entry for copy "${copy.folder}" (ADR 0004)`);
+    } else if (!(row[1] ?? '').includes(repo)) {
+      findings.push(`NOTICE.md: entry "${copy.folder}" must link its upstream ${repo} from ${UPSTREAMS_MANIFEST}`);
     } else if (!(row[2] ?? '').includes(pin)) {
       findings.push(`NOTICE.md: entry "${copy.folder}" must show its pin ${pin} from ${UPSTREAMS_MANIFEST}`);
     } else if ((row[3] ?? '').replace(/`/g, '').toLowerCase() !== 'copy') {

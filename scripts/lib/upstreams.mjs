@@ -1,7 +1,7 @@
 // Upstream sync: the manifest, the lock, the mechanical transform and the
 // three modes of scripts/sync-upstreams.mjs (ADRs 0001, 0004, 0015).
 // Maintainer-only, never ships to user repos. scripts/validate-kit.mjs
-// imports `check` and `readUpstreams` from here.
+// imports `check`, `readUpstreams` and `readJsonFile` from here.
 //
 // upstreams.json pins each upstream and lists the skills copied from it:
 //
@@ -13,13 +13,22 @@
 //       "license": "<the upstream license file, LICENSE by default>",
 //       "skills": { "<upstream name>": "<folder in the upstream repo>" } } } }
 //
-// Each copied skill lands in skills/aw-<upstream name>/. upstreams.lock.json
-// records, for each copy, the git tree hash of its upstream folder at the pin
-// and the git blob hash of every file in it, plus the blob hash of the
-// upstream license. `check` needs only the lock and the copies, so it runs
-// offline: it undoes the rename on each copied file, compares the result to
-// the locked upstream hash, and redoes the rename to confirm the copy carries
-// every rename the transform makes.
+// `release` and `reason` record the choice of pin for people; no code reads
+// them. Each copied skill lands in skills/aw-<upstream name>/.
+//
+// upstreams.lock.json records, for each copy, the git tree hash of its
+// upstream folder at the pin and the mode and git blob hash of every file in
+// it, plus the blob hash of the upstream license. The tree hash is the one
+// `git rev-parse <commit>:<folder>` prints, so the lock can be checked against
+// the upstream, and `check` verifies that the file hashes add up to it.
+//
+// `check` needs only the lock and the copies, so it runs offline. It undoes
+// the rename on each copied file, compares the result to the locked upstream
+// hash, and redoes the rename to confirm the copy carries every rename the
+// transform makes.
+//
+// The relocation part of the mechanical transform (moving shared upstream
+// files into a copy) is not implemented yet: no copy needs it so far.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -43,10 +52,14 @@ export const LICENSE_FILE = 'LICENSE.upstream';
 
 const INSTALL_HINT = 'run `node scripts/sync-upstreams.mjs install`';
 
+export class SyncError extends Error {}
+
 // ---------------------------------------------------------------------------
 // Manifest and lock
 
-function readJsonFile(dir, path) {
+// `{ value }` with the parsed JSON, `{ missing: true }` when the file does not
+// exist, or `{ finding }` when it is not valid JSON.
+export function readJsonFile(dir, path) {
   const full = join(dir, path);
   if (!existsSync(full)) return { missing: true };
   try {
@@ -94,11 +107,12 @@ export function readUpstreams(dir) {
         findings.push(`${at}: skill "${name}" needs the folder it lives in upstream`);
         continue;
       }
-      const copy = { upstream, name, path: path.replace(/\\/g, '/').replace(/\/+$/, ''), folder: PREFIX + name };
-      if (copies.some((other) => other.name === name)) {
-        findings.push(`${at}: skill "${name}" is already copied from upstream "${copies.find((o) => o.name === name).upstream.key}"`);
+      const earlier = copies.find((copy) => copy.name === name);
+      if (earlier) {
+        findings.push(`${at}: skill "${name}" is already copied from upstream "${earlier.upstream.key}"`);
         continue;
       }
+      const copy = { upstream, name, path: path.replace(/\\/g, '/').replace(/\/+$/, ''), folder: PREFIX + name };
       upstream.skills.push(copy);
       copies.push(copy);
     }
@@ -110,29 +124,44 @@ export function readUpstreams(dir) {
 // ---------------------------------------------------------------------------
 // The mechanical transform (ADR 0001), rename part
 //
-// A reference to a copied skill is its upstream name written as a whole
-// token in one of the forms upstream skills use to point at each other:
-// in double quotes (`call the Skill tool with "tdd"`), in backticks
-// (`` `writing-for-agents` ``) or as a slash command (`/codebase-design`).
-// The copy's own SKILL.md also has its frontmatter `name:` renamed. Prose
-// that happens to use a skill's name ("a research question") is left alone.
+// A reference to a copied skill is its upstream name written in one of the
+// forms upstream skills use to point at each other:
+//
+//   - in double quotes: call the Skill tool with "codebase-design";
+//   - as a slash command: the `/codebase-design` skill;
+//   - in backticks followed by "skill": the `codebase-design` skill;
+//   - as the backticked text of a link: [`writing-for-agents`](SKILL.md).
+//
+// The copy's own SKILL.md also has its frontmatter `name:` renamed. Any other
+// use of a name is left alone: prose ("a research question"), a bare
+// backticked word (include the word `prototype` in the path) or a path
+// (`/prototype/<name>`). `install` lists the quoted ones it left alone, so a
+// reference in a form this list lacks does not slip through unseen.
 
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-// Replaces each token `from` with `pairs[from]` in the reference forms.
+const alternation = (names) =>
+  [...names]
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegExp)
+    .join('|');
+
+// Replaces every reference to a key of `pairs` with its value.
 function swapReferences(text, pairs) {
-  const froms = Object.keys(pairs).sort((a, b) => b.length - a.length);
+  const froms = Object.keys(pairs);
   if (froms.length === 0) return text;
-  const tokens = froms.map(escapeRegExp).join('|');
+  const tokens = alternation(froms);
   const swap = (_match, token) => pairs[token];
   return text
     .replace(new RegExp(`(?<=")(${tokens})(?=")`, 'g'), swap)
-    .replace(new RegExp(`(?<=\`)(${tokens})(?=\`)`, 'g'), swap)
+    .replace(new RegExp(`(?<=\`)(${tokens})(?=\` skill\\b)`, 'g'), swap)
+    .replace(new RegExp(`(?<=\\[\`)(${tokens})(?=\`\\]\\()`, 'g'), swap)
     .replace(new RegExp(`(?<![^\\s\`"'(\\[])/(${tokens})(?![\\w/-]|\\.\\w)`, 'g'), (_m, token) => `/${pairs[token]}`);
 }
 
-// Renames `from` to `to` in the `name:` field of a leading frontmatter block.
-function swapName(text, from, to) {
+// Renames `from` to `to` in the `name:` field of SKILL.md's frontmatter.
+function swapName(text, file, from, to) {
+  if (file !== 'SKILL.md') return text;
   const match = text.match(/^---\r?\n[\s\S]*?\r?\n---(\r?\n|$)/);
   if (!match) return text;
   const head = match[0].replace(
@@ -142,18 +171,29 @@ function swapName(text, from, to) {
   return head + text.slice(match[0].length);
 }
 
-// `direction` is 'apply' (upstream to copy) or 'undo' (copy to upstream).
-function rename(text, { file, own, names, direction }) {
-  const pairs = {};
-  for (const name of names) {
-    if (direction === 'apply') pairs[name] = PREFIX + name;
-    else pairs[PREFIX + name] = name;
-  }
-  let result = swapReferences(text, pairs);
-  if (file === 'SKILL.md') {
-    result = direction === 'apply' ? swapName(result, own, PREFIX + own) : swapName(result, PREFIX + own, own);
-  }
-  return result;
+// The rename for one copy, given the names of every copied skill: `apply`
+// turns upstream text into copy text, `undo` turns it back.
+function renamerFor(copy, names) {
+  const toCopy = Object.fromEntries(names.map((name) => [name, PREFIX + name]));
+  const toUpstream = Object.fromEntries(names.map((name) => [PREFIX + name, name]));
+  const copyName = PREFIX + copy.name;
+  return {
+    apply: (text, file) => swapName(swapReferences(text, toCopy), file, copy.name, copyName),
+    undo: (text, file) => swapName(swapReferences(text, toUpstream), file, copyName, copy.name),
+  };
+}
+
+// Quoted or backticked uses of a copied name, and paths through a folder of
+// that name, that the rename left in `text`, as `{ line, mention }`.
+function leftAlone(text, names) {
+  if (names.length === 0) return [];
+  const tokens = alternation(names);
+  const pattern = new RegExp(`\`(?:${tokens})\`|'(?:${tokens})'|(?<![\\w-])/(?:${tokens})/`, 'g');
+  const mentions = [];
+  text.split('\n').forEach((line, index) => {
+    for (const match of line.matchAll(pattern)) mentions.push({ line: index + 1, mention: match[0] });
+  });
+  return mentions;
 }
 
 // Text is UTF-8 without NUL bytes; anything else is copied byte for byte.
@@ -163,14 +203,33 @@ function asText(bytes) {
   return Buffer.from(text, 'utf8').equals(bytes) ? text : null;
 }
 
-function transform(bytes, context) {
-  const text = asText(bytes);
-  return text === null ? bytes : Buffer.from(rename(text, { ...context, direction: 'apply' }), 'utf8');
-}
+// ---------------------------------------------------------------------------
+// Git object hashes, computed the way git computes them
 
-// The git blob hash of some bytes, the same one `git hash-object` prints.
-function blobHash(bytes) {
-  return createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+const objectHash = (type, body) => createHash('sha1').update(`${type} ${body.length}\0`).update(body).digest('hex');
+
+const blobHash = (bytes) => objectHash('blob', bytes);
+
+// The tree hash of a folder from its files, given as
+// `{ "<relative path>": { mode, blob } }`. Git sorts a tree's entries by name,
+// comparing a subtree's name as if it ended in "/".
+function treeHash(files) {
+  const entries = [];
+  const subtrees = {};
+  for (const [path, entry] of Object.entries(files)) {
+    const slash = path.indexOf('/');
+    if (slash === -1) entries.push({ name: path, mode: entry.mode, hash: entry.blob });
+    else (subtrees[path.slice(0, slash)] ??= {})[path.slice(slash + 1)] = entry;
+  }
+  for (const [name, subtree] of Object.entries(subtrees)) {
+    entries.push({ name, mode: '40000', hash: treeHash(subtree) });
+  }
+  const sortKey = (entry) => Buffer.from(entry.mode === '40000' ? `${entry.name}/` : entry.name);
+  entries.sort((a, b) => Buffer.compare(sortKey(a), sortKey(b)));
+  const body = Buffer.concat(
+    entries.flatMap((entry) => [Buffer.from(`${entry.mode} ${entry.name}\0`), Buffer.from(entry.hash, 'hex')]),
+  );
+  return objectHash('tree', body);
 }
 
 // ---------------------------------------------------------------------------
@@ -189,28 +248,37 @@ function copyFiles(dir) {
   return files.sort();
 }
 
-function checkFile(at, bytes, expectedHash, context) {
+// A copied file passes when undoing the rename gives the locked upstream
+// blob and redoing it gives the copy back. A copy checked out with CRLF line
+// endings is compared with LF ones too (ADR 0008); the validator reports the
+// CRLF on its own.
+function checkFile(at, bytes, expectedBlob, file, renamer) {
   const text = asText(bytes);
   if (text === null) {
-    return blobHash(bytes) === expectedHash ? [] : [`${at}: differs from upstream at the pin; a copy may change only by the mechanical transform`];
+    return blobHash(bytes) === expectedBlob ? [] : [`${at}: differs from upstream at the pin; a copy may change only by the mechanical transform`];
   }
-  const upstream = rename(text, { ...context, direction: 'undo' });
-  if (blobHash(Buffer.from(upstream, 'utf8')) !== expectedHash) {
-    return [`${at}: differs from upstream plus the mechanical transform; a copy may not be edited by hand`];
+  const candidates = text.includes('\r\n') ? [text, text.replace(/\r\n/g, '\n')] : [text];
+  for (const candidate of candidates) {
+    const upstream = renamer.undo(candidate, file);
+    if (blobHash(Buffer.from(upstream, 'utf8')) !== expectedBlob) continue;
+    if (renamer.apply(upstream, file) !== candidate) {
+      return [`${at}: a rename is missing; the mechanical transform adds the aw- prefix to the name: field and to every reference to a copied skill`];
+    }
+    return [];
   }
-  if (rename(upstream, { ...context, direction: 'apply' }) !== text) {
-    return [`${at}: a rename is missing; the mechanical transform adds the aw- prefix to the name: field and to every reference to a copied skill`];
-  }
-  return [];
+  return [`${at}: differs from upstream plus the mechanical transform; a copy may not be edited by hand`];
 }
 
-function checkCopy(dir, copy, lockedSkill, licenseHash, names) {
+const isLockedFile = (entry) => isObject(entry) && typeof entry.mode === 'string' && typeof entry.blob === 'string';
+
+function checkCopy(dir, copy, lockedSkill, licenseBlob, renamer) {
   const at = `skills/${copy.folder}`;
   const copyDir = join(dir, at);
   if (!existsSync(copyDir) || !statSync(copyDir).isDirectory()) {
     return [`${at}: copy is missing; ${INSTALL_HINT}`];
   }
-  const expected = { ...lockedSkill.files, [LICENSE_FILE]: licenseHash };
+  const expected = { [LICENSE_FILE]: licenseBlob };
+  for (const [file, entry] of Object.entries(lockedSkill.files)) expected[file] = entry.blob;
   const actual = copyFiles(copyDir);
   const findings = [];
   for (const file of Object.keys(expected).sort()) {
@@ -227,7 +295,7 @@ function checkCopy(dir, copy, lockedSkill, licenseHash, names) {
       findings.push(`${path}: not in the upstream skill at the pin; a copy may not gain files`);
       continue;
     }
-    findings.push(...checkFile(path, readFileSync(join(copyDir, file)), expected[file], { file, own: copy.name, names }));
+    findings.push(...checkFile(path, readFileSync(join(copyDir, file)), expected[file], file, renamer));
   }
   return findings;
 }
@@ -258,11 +326,20 @@ export function check(dir) {
     const lockedSkills = isObject(lockedUpstream.skills) ? lockedUpstream.skills : {};
     for (const copy of upstream.skills) {
       const lockedSkill = lockedSkills[copy.name];
-      if (!isObject(lockedSkill) || lockedSkill.path !== copy.path || !isObject(lockedSkill.files)) {
+      const valid =
+        isObject(lockedSkill) &&
+        lockedSkill.path === copy.path &&
+        isObject(lockedSkill.files) &&
+        Object.values(lockedSkill.files).every(isLockedFile);
+      if (!valid) {
         findings.push(`${at}: skill "${copy.name}" is not locked as ${MANIFEST} lists it; ${INSTALL_HINT}`);
         continue;
       }
-      findings.push(...checkCopy(dir, copy, lockedSkill, lockedUpstream.license.blob, names));
+      if (treeHash(lockedSkill.files) !== lockedSkill.tree) {
+        findings.push(`${at}: skill "${copy.name}" has file hashes that do not match its tree hash; ${INSTALL_HINT}`);
+        continue;
+      }
+      findings.push(...checkCopy(dir, copy, lockedSkill, lockedUpstream.license.blob, renamerFor(copy, names)));
     }
     for (const name of Object.keys(lockedSkills)) {
       if (!upstream.skills.some((copy) => copy.name === name)) {
@@ -281,63 +358,68 @@ export function check(dir) {
 // ---------------------------------------------------------------------------
 // Reading an upstream through git (install and report)
 
-class SyncError extends Error {}
-
-function git(gitDir, args, { encoding = 'utf8' } = {}) {
+// git's stdout, or null when it exits non-zero.
+function tryGit(gitDir, args, { encoding = 'utf8' } = {}) {
   const result = spawnSync('git', ['-C', gitDir, ...args], { encoding, maxBuffer: 64 * 1024 * 1024 });
   if (result.error) throw new SyncError(`git could not be run: ${result.error.message}`);
-  if (result.status !== 0) {
-    const stderr = Buffer.isBuffer(result.stderr) ? result.stderr.toString('utf8') : result.stderr;
-    throw new SyncError(`git ${args.join(' ')} failed in ${gitDir}:\n${stderr.trim()}`);
-  }
-  return result.stdout;
+  return result.status === 0 ? result.stdout : null;
 }
 
-// A git directory holding the upstream: the repo itself when `repo` is a
-// local directory, otherwise a fresh clone in a temp directory.
-function openUpstream(dir, upstream) {
-  const local = resolve(dir, upstream.repo);
-  if (existsSync(local) && statSync(local).isDirectory()) return { gitDir: local, cleanup: () => {} };
-  const temp = mkdtempSync(join(tmpdir(), 'aw-sync-'));
-  const cleanup = () => rmSync(temp, { recursive: true, force: true });
-  const clone = spawnSync('git', ['clone', '--quiet', '--no-checkout', upstream.repo, temp], { encoding: 'utf8' });
-  if (clone.status !== 0) {
-    cleanup();
-    throw new SyncError(`could not clone ${upstream.repo}:\n${(clone.stderr ?? clone.error?.message ?? '').trim()}`);
-  }
-  return { gitDir: temp, cleanup };
-}
-
-function hasCommit(gitDir, commit) {
-  return spawnSync('git', ['-C', gitDir, 'cat-file', '-e', `${commit}^{commit}`]).status === 0;
+// git's stdout; throws when it exits non-zero.
+function git(gitDir, args, options) {
+  const out = tryGit(gitDir, args, options);
+  if (out === null) throw new SyncError(`git ${args.join(' ')} failed in ${gitDir}`);
+  return out;
 }
 
 // The git object hash at `commit:path`, or null when there is none.
 function objectAt(gitDir, commit, path) {
-  const result = spawnSync('git', ['-C', gitDir, 'rev-parse', '--verify', '--quiet', `${commit}:${path}`], {
-    encoding: 'utf8',
-  });
-  return result.status === 0 ? result.stdout.trim() : null;
+  return tryGit(gitDir, ['rev-parse', '--verify', '--quiet', `${commit}:${path}`])?.trim() ?? null;
 }
 
-// Every file under `path` at `commit`, as { file, hash } with `file`
+// Runs `fn` with a git directory holding the upstream, after checking the
+// pinned commit is there: the repo itself when `repo` is a local directory,
+// otherwise a fresh clone in a temp directory, removed afterwards.
+function withUpstream(dir, upstream, fn) {
+  const local = resolve(dir, upstream.repo);
+  let gitDir = local;
+  let temp = null;
+  if (!existsSync(local) || !statSync(local).isDirectory()) {
+    temp = mkdtempSync(join(tmpdir(), 'aw-sync-'));
+    const clone = spawnSync('git', ['clone', '--quiet', '--no-checkout', upstream.repo, temp], { encoding: 'utf8' });
+    if (clone.status !== 0) {
+      rmSync(temp, { recursive: true, force: true });
+      throw new SyncError(`could not clone ${upstream.repo}:\n${(clone.stderr ?? clone.error?.message ?? '').trim()}`);
+    }
+    gitDir = temp;
+  }
+  try {
+    if (tryGit(gitDir, ['cat-file', '-e', `${upstream.commit}^{commit}`]) === null) {
+      throw new SyncError(`upstream "${upstream.key}" has no commit ${upstream.commit}`);
+    }
+    return fn(gitDir);
+  } finally {
+    if (temp) rmSync(temp, { recursive: true, force: true });
+  }
+}
+
+// Every file under `path` at `commit`, as { file, mode, blob } with `file`
 // relative to `path`.
 function treeFiles(gitDir, commit, path) {
-  const out = git(gitDir, ['ls-tree', '-r', '-z', '--full-tree', commit, '--', `${path}/`]);
-  return out
+  return git(gitDir, ['ls-tree', '-r', '-z', '--full-tree', commit, '--', `${path}/`])
     .split('\0')
     .filter(Boolean)
     .map((line) => {
       const [meta, fullPath] = line.split('\t');
-      const [mode, type, hash] = meta.split(' ');
-      if (type !== 'blob' || mode === '120000') {
-        throw new SyncError(`${fullPath} at ${commit} is a ${mode === '120000' ? 'symlink' : type}; copies hold only regular files`);
+      const [mode, type, blob] = meta.split(' ');
+      if (type !== 'blob' || (mode !== '100644' && mode !== '100755')) {
+        throw new SyncError(`${fullPath} at ${commit} is not a regular file (mode ${mode}); copies hold only regular files`);
       }
-      return { file: fullPath.slice(path.length + 1), hash };
+      return { file: fullPath.slice(path.length + 1), mode, blob };
     });
 }
 
-const blob = (gitDir, hash) => git(gitDir, ['cat-file', 'blob', hash], { encoding: 'buffer' });
+const readBlob = (gitDir, blob) => git(gitDir, ['cat-file', 'blob', blob], { encoding: 'buffer' });
 
 // ---------------------------------------------------------------------------
 // install
@@ -347,8 +429,23 @@ function writeFile(path, bytes) {
   writeFileSync(path, bytes);
 }
 
+// Writes one upstream file into a copy with the rename applied, and returns
+// the lines listing what the rename left alone in it.
+function installFile(copyDir, at, file, bytes, renamer, names) {
+  const text = asText(bytes);
+  if (text === null) {
+    writeFile(join(copyDir, file), bytes);
+    return [];
+  }
+  const copied = renamer.apply(text, file);
+  writeFile(join(copyDir, file), copied);
+  return leftAlone(copied, names).map(({ line, mention }) => `${at}/${file}:${line}: left alone: ${mention}`);
+}
+
 // Installs every copy at its pin, applies the mechanical transform, adds
-// LICENSE.upstream and rewrites the lock. Returns the lines to print.
+// LICENSE.upstream and rewrites the lock. Copies dropped from the manifest
+// since the last install are removed, so the copies always match the
+// manifest. Returns the lines to print.
 export function install(dir) {
   const { upstreams, copies, findings } = readUpstreams(dir);
   if (findings.length > 0) throw new SyncError(findings.join('\n'));
@@ -358,45 +455,40 @@ export function install(dir) {
   const lines = [];
 
   for (const upstream of upstreams) {
-    const { gitDir, cleanup } = openUpstream(dir, upstream);
-    try {
-      if (!hasCommit(gitDir, upstream.commit)) {
-        throw new SyncError(`upstream "${upstream.key}" has no commit ${upstream.commit}`);
-      }
-      const licenseHash = objectAt(gitDir, upstream.commit, upstream.license);
-      if (licenseHash === null) {
+    withUpstream(dir, upstream, (gitDir) => {
+      const licenseBlob = objectAt(gitDir, upstream.commit, upstream.license);
+      if (licenseBlob === null) {
         throw new SyncError(`upstream "${upstream.key}" has no ${upstream.license} at ${upstream.commit}`);
       }
-      const license = blob(gitDir, licenseHash);
+      const license = readBlob(gitDir, licenseBlob);
       const lockedSkills = {};
       for (const copy of upstream.skills) {
         const tree = objectAt(gitDir, upstream.commit, copy.path);
         if (tree === null) {
           throw new SyncError(`upstream "${upstream.key}" has no ${copy.path} at ${upstream.commit}`);
         }
-        const copyDir = join(dir, 'skills', copy.folder);
+        const at = `skills/${copy.folder}`;
+        const copyDir = join(dir, at);
+        const renamer = renamerFor(copy, names);
         rmSync(copyDir, { recursive: true, force: true });
         const files = {};
-        for (const { file, hash } of treeFiles(gitDir, upstream.commit, copy.path)) {
-          files[file] = hash;
-          writeFile(join(copyDir, file), transform(blob(gitDir, hash), { file, own: copy.name, names }));
+        for (const { file, mode, blob } of treeFiles(gitDir, upstream.commit, copy.path)) {
+          files[file] = { mode, blob };
+          lines.push(...installFile(copyDir, at, file, readBlob(gitDir, blob), renamer, names));
         }
-        writeFile(join(copyDir, LICENSE_FILE), transform(license, { file: LICENSE_FILE, own: copy.name, names }));
+        lines.push(...installFile(copyDir, at, LICENSE_FILE, license, renamer, names));
         lockedSkills[copy.name] = { path: copy.path, tree, files };
-        lines.push(`installed skills/${copy.folder} from ${upstream.key} ${copy.path} at ${upstream.commit.slice(0, 12)}`);
+        lines.push(`installed ${at} from ${upstream.key} ${copy.path} at ${upstream.commit.slice(0, 12)}`);
       }
       lock.upstreams[upstream.key] = {
         repo: upstream.repo,
         commit: upstream.commit,
-        license: { path: upstream.license, blob: licenseHash },
+        license: { path: upstream.license, blob: licenseBlob },
         skills: lockedSkills,
       };
-    } finally {
-      cleanup();
-    }
+    });
   }
 
-  // Copies dropped from the manifest since the last install are removed.
   for (const lockedUpstream of Object.values(isObject(previous?.upstreams) ? previous.upstreams : {})) {
     for (const name of Object.keys(isObject(lockedUpstream?.skills) ? lockedUpstream.skills : {})) {
       if (names.includes(name)) continue;
@@ -420,11 +512,7 @@ export function report(dir) {
   if (findings.length > 0) throw new SyncError(findings.join('\n'));
   const lines = [];
   for (const upstream of upstreams) {
-    const { gitDir, cleanup } = openUpstream(dir, upstream);
-    try {
-      if (!hasCommit(gitDir, upstream.commit)) {
-        throw new SyncError(`upstream "${upstream.key}" has no commit ${upstream.commit}`);
-      }
+    withUpstream(dir, upstream, (gitDir) => {
       const head = git(gitDir, ['rev-parse', 'HEAD']).trim();
       const count = git(gitDir, ['rev-list', '--count', `${upstream.commit}..${head}`]).trim();
       lines.push(`${upstream.key}: pinned at ${upstream.commit.slice(0, 12)}, upstream is at ${head.slice(0, 12)}, ${count} commit(s) since the pin`);
@@ -440,16 +528,12 @@ export function report(dir) {
         } else if (before === after) {
           lines.push(`  ${label}: unchanged`);
         } else {
-          const log = git(gitDir, ['log', '--format=%h %s', `${upstream.commit}..${head}`, '--', path]).trim();
           lines.push(`  ${label}: changed`);
+          const log = git(gitDir, ['log', '--format=%h %s', `${upstream.commit}..${head}`, '--', path]).trim();
           for (const entry of log.split('\n').filter(Boolean)) lines.push(`    ${entry}`);
         }
       }
-    } finally {
-      cleanup();
-    }
+    });
   }
   return lines;
 }
-
-export { SyncError };

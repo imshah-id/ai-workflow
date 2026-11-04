@@ -6,31 +6,24 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import {
+  assertNoFindings,
+  assertOneFinding,
+  manifests,
+  repoRoot,
+  runCli,
+  validateCli,
+  writeFiles,
+} from './fixtures.mjs';
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const cli = join(repoRoot, 'scripts', 'validate-kit.mjs');
-
-const json = (value) => JSON.stringify(value, null, 2) + '\n';
-
-// A fixture kit maps each relative path to its content: a string, a Buffer,
-// or an object written as JSON. A valid kit has one model-invoked skill and one
-// user-invoked skill.
+// A fixture kit maps each relative path to its content (see writeFiles). A
+// valid kit has one model-invoked skill and one user-invoked skill.
 function validKit() {
   return {
-    '.claude-plugin/plugin.json': {
-      name: 'fixture-kit',
-      version: '1.2.3',
-      skills: ['./skills/aw-alpha', './skills/aw-beta'],
-    },
-    '.claude-plugin/marketplace.json': {
-      name: 'fixture-kit',
-      owner: { name: 'fixture' },
-      plugins: [{ name: 'fixture-kit', source: './', version: '1.2.3' }],
-    },
+    ...manifests(['aw-alpha', 'aw-beta']),
     'skills/aw-alpha/SKILL.md':
       '---\nname: aw-alpha\ndescription: A model-invoked skill.\n---\n\nBody.\n',
     'skills/aw-beta/SKILL.md':
@@ -44,37 +37,14 @@ function runOn(files, { git = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'aw-kit-'));
   try {
     if (git) spawnSync('git', ['init', '--quiet', dir], { encoding: 'utf8' });
-    for (const [path, content] of Object.entries(files)) {
-      if (content === undefined) continue;
-      const full = join(dir, path);
-      mkdirSync(dirname(full), { recursive: true });
-      const isRaw = typeof content === 'string' || Buffer.isBuffer(content);
-      writeFileSync(full, isRaw ? content : json(content));
-    }
+    writeFiles(dir, files);
     return run(dir);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
-function run(dir) {
-  const result = spawnSync(process.execPath, [cli, dir], { encoding: 'utf8' });
-  const findings = result.stdout.split('\n').filter((line) => line.trim() !== '');
-  return { status: result.status, findings, stderr: result.stderr };
-}
-
-// Asserts the CLI passed with no findings.
-function assertNoFindings({ status, findings }) {
-  assert.deepEqual(findings, []);
-  assert.equal(status, 0);
-}
-
-// Asserts the CLI failed with exactly one finding, and that it matches.
-function assertOneFinding({ status, findings }, pattern) {
-  assert.equal(findings.length, 1, `expected one finding, got:\n${findings.join('\n')}`);
-  assert.match(findings[0], pattern);
-  assert.notEqual(status, 0);
-}
+const run = (dir) => runCli(validateCli, dir);
 
 test('a valid kit passes with no findings', () => {
   assertNoFindings(runOn(validKit()));

@@ -12,8 +12,14 @@
           "path": "skills/productivity/grilling",
           "tree": "f551b6e0d219fdda0b6abf277f8f915b3127d1e9",
           "files": {
-            "SKILL.md": "d2f09a18e6a6c65c55f1271ba08dfeaf06f0bed3",
-            "agents/openai.yaml": "ddbdb96139c0c1dfe6bca698f39d0465674b8a39"
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "d2f09a18e6a6c65c55f1271ba08dfeaf06f0bed3"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "ddbdb96139c0c1dfe6bca698f39d0465674b8a39"
+            }
           }
         }
       }

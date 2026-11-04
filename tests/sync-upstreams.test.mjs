@@ -4,21 +4,26 @@
 // directory, so nothing touches the network) and a fixture kit whose
 // upstreams.json points at it, installs the copies with
 // `node scripts/sync-upstreams.mjs install <kit>`, and asserts on exit codes,
-// reported findings and the installed files only.
+// reported findings and output. The rename tests also read the installed
+// copy, since the copy is what `install` outputs.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
-const syncCli = join(repoRoot, 'scripts', 'sync-upstreams.mjs');
-const validateCli = join(repoRoot, 'scripts', 'validate-kit.mjs');
-
-const json = (value) => JSON.stringify(value, null, 2) + '\n';
+import { join } from 'node:path';
+import {
+  assertNoFindings,
+  assertOneFinding,
+  json,
+  manifests,
+  repoRoot,
+  runCli,
+  syncCli,
+  validateCli,
+  writeFiles,
+} from './fixtures.mjs';
 
 const temps = [];
 process.on('exit', () => {
@@ -29,16 +34,6 @@ function tempDir(prefix) {
   const dir = mkdtempSync(join(tmpdir(), prefix));
   temps.push(dir);
   return dir;
-}
-
-function writeFiles(dir, files) {
-  for (const [path, content] of Object.entries(files)) {
-    if (content === undefined) continue;
-    const full = join(dir, path);
-    mkdirSync(dirname(full), { recursive: true });
-    const isRaw = typeof content === 'string' || Buffer.isBuffer(content);
-    writeFileSync(full, isRaw ? content : json(content));
-  }
 }
 
 function git(dir, ...args) {
@@ -54,15 +49,19 @@ function git(dir, ...args) {
 const UPSTREAM_LICENSE = 'MIT License\n\nCopyright (c) 2026 Upstream Author\n';
 
 // An upstream skill collection, bucketed the way Pocock's repo is. `alpha`
-// calls `beta` through the Skill tool and mentions "beta" in prose too.
+// refers to `beta` in every form the rename knows, and also uses the name
+// where it is not a reference.
+const ALPHA =
+  '---\nname: alpha\ndescription: An upstream skill.\n---\n\n' +
+  'Call the Skill tool with "beta" first.\n' +
+  'Then load the `beta` skill, or run `/beta` yourself.\n' +
+  'The rest of [`alpha`](SKILL.md) applies.\n' +
+  'Put `beta` in the filename; a beta release is not a reference, nor is `/beta/notes.md`.\n';
+
 function upstreamFiles() {
   return {
     LICENSE: UPSTREAM_LICENSE,
-    'skills/group/alpha/SKILL.md':
-      '---\nname: alpha\ndescription: An upstream skill.\n---\n\n' +
-      'Call the Skill tool with "beta" first.\n' +
-      'Then load `beta`, or run `/beta` yourself.\n' +
-      'A beta release is not a skill reference, nor is `/beta/notes.md`.\n',
+    'skills/group/alpha/SKILL.md': ALPHA,
     'skills/group/alpha/agents/openai.yaml': 'interface:\n  display_name: "Alpha"\n',
     'skills/group/beta/SKILL.md': '---\nname: beta\ndescription: Another upstream skill.\n---\n\nBody.\n',
     'skills/group/gamma/SKILL.md': '---\nname: gamma\ndescription: Not copied.\n---\n\nBody.\n',
@@ -87,20 +86,13 @@ function notice(rows) {
   );
 }
 
+// The NOTICE.md row of a copy of `name` from `upstream`.
+const noticeRow = (name, upstream, pin = upstream.commit.slice(0, 7)) => [`\`${name}\``, `[fixture](${upstream.dir})`, `\`${pin}\``, 'copy'];
+
 // A fixture kit that copies `alpha` and `beta` from the upstream.
 function kitFiles(upstream) {
-  const pin = upstream.commit.slice(0, 7);
   return {
-    '.claude-plugin/plugin.json': {
-      name: 'fixture-kit',
-      version: '1.2.3',
-      skills: ['./skills/aw-alpha', './skills/aw-beta'],
-    },
-    '.claude-plugin/marketplace.json': {
-      name: 'fixture-kit',
-      owner: { name: 'fixture' },
-      plugins: [{ name: 'fixture-kit', source: './', version: '1.2.3' }],
-    },
+    ...manifests(['aw-alpha', 'aw-beta']),
     'upstreams.json': {
       upstreams: {
         fixture: {
@@ -114,17 +106,8 @@ function kitFiles(upstream) {
         },
       },
     },
-    'NOTICE.md': notice([
-      ['`aw-alpha`', 'fixture', `\`${pin}\``, 'copy'],
-      ['`aw-beta`', 'fixture', `\`${pin}\``, 'copy'],
-    ]),
+    'NOTICE.md': notice([noticeRow('aw-alpha', upstream), noticeRow('aw-beta', upstream)]),
   };
-}
-
-function runCli(cli, ...args) {
-  const result = spawnSync(process.execPath, [cli, ...args], { encoding: 'utf8' });
-  const findings = result.stdout.split('\n').filter((line) => line.trim() !== '');
-  return { status: result.status, findings, stdout: result.stdout, stderr: result.stderr };
 }
 
 const sync = (mode, dir, ...rest) => runCli(syncCli, mode, dir, ...rest);
@@ -138,22 +121,11 @@ function installedKit({ upstream = makeUpstream(), edit } = {}) {
   writeFiles(dir, files);
   const install = sync('install', dir);
   assert.equal(install.status, 0, `install failed:\n${install.stdout}${install.stderr}`);
-  return { dir, upstream };
+  return { dir, upstream, install };
 }
 
 const read = (dir, path) => readFileSync(join(dir, path), 'utf8');
 const write = (dir, path, content) => writeFileSync(join(dir, path), content);
-
-function assertNoFindings({ status, findings, stderr }) {
-  assert.deepEqual(findings, [], stderr);
-  assert.equal(status, 0);
-}
-
-function assertOneFinding({ status, findings }, pattern) {
-  assert.equal(findings.length, 1, `expected one finding, got:\n${findings.join('\n')}`);
-  assert.match(findings[0], pattern);
-  assert.notEqual(status, 0);
-}
 
 test('copies installed from a local-directory upstream pass the kit validator', () => {
   const { dir } = installedKit();
@@ -162,16 +134,47 @@ test('copies installed from a local-directory upstream pass the kit validator', 
   assert.match(read(dir, 'skills/aw-alpha/SKILL.md'), /^---\nname: aw-alpha\n/);
 });
 
-test('install renames references to other copied skills and leaves prose alone', () => {
+test('install renames references to other copied skills and leaves other uses of the name alone', () => {
   const { dir } = installedKit();
 
   assert.equal(
     read(dir, 'skills/aw-alpha/SKILL.md'),
     '---\nname: aw-alpha\ndescription: An upstream skill.\n---\n\n' +
       'Call the Skill tool with "aw-beta" first.\n' +
-      'Then load `aw-beta`, or run `/aw-beta` yourself.\n' +
-      'A beta release is not a skill reference, nor is `/beta/notes.md`.\n',
+      'Then load the `aw-beta` skill, or run `/aw-beta` yourself.\n' +
+      'The rest of [`aw-alpha`](SKILL.md) applies.\n' +
+      'Put `beta` in the filename; a beta release is not a reference, nor is `/beta/notes.md`.\n',
   );
+});
+
+test('install lists the quoted uses of a copied name it left alone, for the maintainer to judge', () => {
+  const { install } = installedKit();
+
+  const leftAlone = install.stdout.split('\n').filter((line) => line.includes('left alone'));
+  assert.deepEqual(leftAlone, [
+    'skills/aw-alpha/SKILL.md:9: left alone: `beta`',
+    'skills/aw-alpha/SKILL.md:9: left alone: /beta/',
+  ]);
+});
+
+test('a copy checked out with CRLF line endings is reported once, for its line endings', () => {
+  const { dir } = installedKit();
+  write(dir, 'skills/aw-alpha/SKILL.md', read(dir, 'skills/aw-alpha/SKILL.md').replace(/\n/g, '\r\n'));
+
+  assertNoFindings(sync('check', dir));
+  assertOneFinding(validate(dir), /^skills\/aw-alpha\/SKILL\.md: .*CRLF/);
+});
+
+test('a lock whose file hashes no longer match its tree hash is reported', () => {
+  const { dir } = installedKit();
+  write(dir, 'skills/aw-beta/SKILL.md', read(dir, 'skills/aw-beta/SKILL.md').replace('Body.', 'Edited.'));
+  const lock = JSON.parse(read(dir, 'upstreams.lock.json'));
+  const edited = read(dir, 'skills/aw-beta/SKILL.md').replace('name: aw-beta', 'name: beta');
+  const blob = spawnSync('git', ['hash-object', '--stdin'], { input: edited, encoding: 'utf8' }).stdout.trim();
+  lock.upstreams.fixture.skills.beta.files['SKILL.md'].blob = blob;
+  write(dir, 'upstreams.lock.json', json(lock));
+
+  assertOneFinding(validate(dir), /^upstreams\.lock\.json: .*"beta".*tree hash/);
 });
 
 test('install keeps agents/ and adds the upstream license as LICENSE.upstream', () => {
@@ -227,7 +230,7 @@ test('a file added to a copy is reported', () => {
 test('a copy without a NOTICE entry is reported', () => {
   const { dir } = installedKit({
     edit: (files, upstream) => {
-      files['NOTICE.md'] = notice([['`aw-alpha`', 'fixture', `\`${upstream.commit.slice(0, 7)}\``, 'copy']]);
+      files['NOTICE.md'] = notice([noticeRow('aw-alpha', upstream)]);
     },
   });
 
@@ -237,14 +240,23 @@ test('a copy without a NOTICE entry is reported', () => {
 test('a NOTICE entry with a stale pin is reported', () => {
   const { dir } = installedKit({
     edit: (files, upstream) => {
-      files['NOTICE.md'] = notice([
-        ['`aw-alpha`', 'fixture', `\`${upstream.commit.slice(0, 7)}\``, 'copy'],
-        ['`aw-beta`', 'fixture', '`0000000`', 'copy'],
-      ]);
+      files['NOTICE.md'] = notice([noticeRow('aw-alpha', upstream), noticeRow('aw-beta', upstream, '0000000')]);
     },
   });
 
   assertOneFinding(validate(dir), /^NOTICE\.md: entry "aw-beta" must show its pin/);
+});
+
+test('a NOTICE entry that names another upstream is reported', () => {
+  const { dir } = installedKit({
+    edit: (files, upstream) => {
+      const beta = noticeRow('aw-beta', upstream);
+      beta[1] = '[someone/else](https://example.com/someone/else)';
+      files['NOTICE.md'] = notice([noticeRow('aw-alpha', upstream), beta]);
+    },
+  });
+
+  assertOneFinding(validate(dir), /^NOTICE\.md: entry "aw-beta" must link its upstream/);
 });
 
 test('a pin moved in upstreams.json without a fresh install is reported', () => {
