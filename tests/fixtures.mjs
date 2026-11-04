@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 export const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const validateCli = join(repoRoot, 'scripts', 'validate-kit.mjs');
 export const syncCli = join(repoRoot, 'scripts', 'sync-upstreams.mjs');
+export const checkSpecCli = join(repoRoot, 'skills', 'aw-check-spec', 'scripts', 'check-spec.mjs');
 
 export const json = (value) => JSON.stringify(value, null, 2) + '\n';
 

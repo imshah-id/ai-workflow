@@ -1,0 +1,3 @@
+interface:
+  display_name: "Check spec"
+  short_description: "Validate specs and their traceability"
