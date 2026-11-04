@@ -1,0 +1,20 @@
+{
+  "name": "ai-workflow",
+  "version": "0.0.0",
+  "description": "A tracker- and VCS-agnostic workflow kit of aw- prefixed agent skills: from a task to a merged change, with a spec when the change deserves one, evidence for every acceptance criterion and a review before anything ships.",
+  "author": {
+    "name": "samfaina",
+    "url": "https://github.com/samfaina"
+  },
+  "homepage": "https://github.com/samfaina/ai-workflow",
+  "repository": "https://github.com/samfaina/ai-workflow",
+  "license": "MIT",
+  "keywords": [
+    "workflow",
+    "skills",
+    "spec",
+    "tdd",
+    "code-review"
+  ],
+  "skills": []
+}

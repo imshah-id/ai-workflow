@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  kit:
+    name: Tests and kit validation (${{ matrix.os }}, Node ${{ matrix.node }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [18, 22]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Tests
+        run: node --test
+
+      - name: Validate kit invariants
+        run: node scripts/validate-kit.mjs
+
+  plugin:
+    name: Plugin manifest validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Pinned so that a new CLI release cannot fail a pull request that
+      # changed nothing. Move the pin deliberately.
+      - name: Install Claude Code
+        run: npm install --global @anthropic-ai/claude-code@2.1.318
+
+      - name: Validate plugin and marketplace manifests
+        run: claude plugin validate . --strict
