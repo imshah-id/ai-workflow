@@ -23,8 +23,12 @@ A third-party skill collection the kit copies from or draws on, pinned to a comm
 _Avoid_: source, origin, vendor
 
 **Copy**:
-An upstream skill shipped with its text unchanged except for the mechanical `aw-` rename, with the upstream license inside its folder.
+An upstream skill shipped with its text unchanged except for the mechanical transform, with the upstream license inside its folder.
 _Avoid_: vendored skill, fork, mirror
+
+**Mechanical transform**:
+The only edits a copy may carry. The first renames it with the `aw-` prefix. The second moves the shared upstream files it points to into its own folder and rewrites the paths to them.
+_Avoid_: patch, local edit
 
 **Adaptation**:
 A kit skill whose text derives from one or more upstream skills.

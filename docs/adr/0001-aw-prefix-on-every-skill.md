@@ -9,5 +9,9 @@ Every skill the kit ships is named `aw-<name>`: kit skills (`aw-spec`, `aw-build
 
 ## Consequences
 
-- A copy is no longer byte-identical to its upstream. Its text is unchanged except for a mechanical rename: the folder, the `name:` field, and references to other copied skills (for example `aw-tdd` calls the Skill tool with `aw-codebase-design`). The sync tooling applies the rename and checks that the upstream text plus the rename equals the copy.
+- A copy is no longer byte-identical to its upstream. Its text changes only by the **mechanical transform**, which has two parts:
+  - The rename: the folder, the `name:` field, and references to other copied skills (for example `aw-tdd` calls the Skill tool with `aw-codebase-design`).
+  - Relocating shared upstream files the copy points to outside its own folder, such as Addy Osmani's repo-level `references/security-checklist.md`. They move into the copy's folder and the paths that point at them are rewritten, because `npx skills` installs one folder at a time (ADR 0002) and would leave them behind.
+
+  The sync tooling applies the transform and checks that the upstream text plus the transform equals the copy. Any other edit turns the skill into an adaptation.
 - Per-repo choice also relies on Claude Code's `enabledPlugins`. The kit can be installed with `--scope project` only where it is used, and Pocock's plugin can be disabled in those repos.

@@ -2,8 +2,8 @@
 
 `upstreams.json` pins each upstream (repo and commit) and lists the skills copied from it. `scripts/sync-upstreams.mjs` has three modes:
 
-- `install` clones each upstream at its pin, applies the `aw-` rename (ADR 0001) and adds `LICENSE.upstream`.
-- `check` verifies offline that each upstream skill plus the rename equals its copy, against hashes in `upstreams.lock.json`.
+- `install` clones each upstream at its pin, applies the mechanical transform (ADR 0001) and adds `LICENSE.upstream`.
+- `check` verifies offline that each upstream skill plus the transform equals its copy, against hashes in `upstreams.lock.json`.
 - `report` lists what changed upstream since the pin.
 
 Copies keep their `agents/` folder (`openai.yaml`), because Codex needs it. A GitHub Actions workflow runs `check` and validates the plugin manifests on every pull request.
