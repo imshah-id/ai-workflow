@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Write the per-repo configuration the kit's skills read:
 
-- **Adapters** in `docs/agents/`: `tracker.md`, `vcs.md`, `checks.md` and `domain.md`. Each translates the kit's canonical operations into this repo's tooling and sets the access level of each write operation.
+- **Adapters** in `docs/agents/`: `tracker.md`, `vcs.md` and `checks.md`, each translating the kit's canonical operations into this repo's tooling and setting the access level of each write operation, plus the domain doc, `domain.md`, which says where the glossary and ADRs live.
 - **The pointer block**: an `## Agent skills` section in `AGENTS.md`, or in `CLAUDE.md` when only that exists, through which every skill finds the adapters.
 - **Housekeeping**: `.aw/` in `.gitignore`, the `permissions.deny` offer, the Node warning and the Pocock check.
 
@@ -48,7 +48,7 @@ Take the sections in order, one answer each. Lead each with the recommended answ
 **A. Tracker.** Where tickets live. Propose GitHub when a remote points at GitHub, GitLab when one points at GitLab, and otherwise none. Offer:
 
 - **None**: no tracker; tasks arrive as free text. Template [`tracker-none.md`](adapters/tracker-none.md).
-- **Local markdown**: one file per ticket in a tickets folder, `docs/tickets/` unless the user names another. The folder is never `docs/specs/` or inside it: a ticket is never mistaken for a spec. Template [`tracker-local.md`](adapters/tracker-local.md).
+- **Local markdown**: one file per ticket in a tickets folder of its own, `docs/tickets/` unless the user names another, outside `docs/specs/` so that tickets and specs stay apart. Template [`tracker-local.md`](adapters/tracker-local.md).
 - **GitHub**, through `gh`. Template [`tracker-github.md`](adapters/tracker-github.md).
 - **GitLab**, through `glab`. Template [`tracker-gitlab.md`](adapters/tracker-gitlab.md).
 - **Other** (Jira, Linear, …): ask the user to describe, in a short paragraph, how they fetch, list, create, comment on, move and link tickets. Template [`tracker-other.md`](adapters/tracker-other.md), filled with their prose.
@@ -75,7 +75,7 @@ A GitHub or GitLab tracker needs the repo reachable: `gh repo view` or `glab rep
 
 Show the proposed commands and where each came from, and let the user confirm or edit each one. A level with no command is recorded as `none`; it is reported as not run, never as passed. Template [`checks.md`](adapters/checks.md).
 
-**D. Domain docs.** Single-context (one `GLOSSARY.md` and `docs/adr/` at the root) unless step 1 found a `GLOSSARY-MAP.md` or monorepo signals (a `pnpm-workspace.yaml`, a `workspaces` field, a populated `packages/*`); then confirm which layout. Template [`domain.md`](adapters/domain.md).
+**D. Domain docs.** Single-context (one `GLOSSARY.md` and `docs/adr/` at the root) unless step 1 found a `GLOSSARY-MAP.md` or monorepo signals (a `pnpm-workspace.yaml`, a `workspaces` field, a populated `packages/*`); then confirm which layout. Then where the glossary and ADRs live: propose the paths step 1 found, or `GLOSSARY.md` and `docs/adr/` when there are none yet. Template [`domain.md`](adapters/domain.md); when the paths differ from the template's, write the repo's paths in its place.
 
 Done when every section has an answer.
 
@@ -84,7 +84,7 @@ Done when every section has an answer.
 Show the user, together:
 
 - the `## Agent skills` block (step 4), and which file it goes into;
-- the four adapters as they will be written, or, on a re-run, only the lines that change;
+- the three adapters and the domain doc as they will be written, or, on a re-run, only the lines that change;
 - the housekeeping changes from [`HOUSEKEEPING.md`](HOUSEKEEPING.md).
 
 Let them edit. Done when the user approves the set.
@@ -106,7 +106,7 @@ A template's Operations table keeps every row: an adapter that cannot perform an
 - Else if a `CLAUDE.md` exists (at the root or in `.claude/`), add it there.
 - Else create `AGENTS.md` with the block.
 
-Never create a second block. Updating a block means rewriting the kit's four subsections below with the new values, in place, in this order and at the top of the block. Subsections the kit does not own, such as `### Issue tracker` or `### Triage labels` from Matt Pocock's setup, follow them unchanged unless the user asks to remove them. The rest of the file is never touched.
+Never create a second block. Updating a block means rewriting the kit's four subsections below with the new values, in place, in this order and at the top of the block. Subsections the kit does not own, such as `### Issue tracker` or `### Triage labels` from Matt Pocock's setup, follow them unchanged: his skills read them while his plugin is on, and the kit's skills read only the kit's four. When the user turns his plugin off for this repo, offer to remove his subsections. The rest of the file is never touched.
 
 ```markdown
 ## Agent skills
@@ -130,11 +130,11 @@ Never create a second block. Updating a block means rewriting the kit's four sub
 
 **Housekeeping.** Apply what the user accepted, as [`HOUSEKEEPING.md`](HOUSEKEEPING.md) describes.
 
-Done when the four adapters, the block and the accepted housekeeping changes are written, and a second read of each file shows no `{{` left in an adapter, one `## Agent skills` block, one `.aw/` ignore line and no repeated deny entry or `enabledPlugins` key.
+Done when the three adapters, the domain doc, the block and the accepted housekeeping changes are written, and a second read of each file shows no `{{` left in an adapter, one `## Agent skills` block, one `.aw/` ignore line and no repeated deny entry or `enabledPlugins` key.
 
 ### 5. Report
 
-Tell the user what was written and what changed, and any warning from housekeeping (Node missing, Pocock's plugin left on). Say they can edit `docs/agents/*.md` by hand or re-run `/aw-setup` at any time. Then name the next skill: `/aw-intake`, to start a task.
+Tell the user what was written and what changed, and any warning from housekeeping (Node missing, Pocock's plugin left on). Say they can edit `docs/agents/*.md` by hand or re-run `/aw-setup` at any time. Then name the next skill: `/aw-intake`, to start a task. Done when the report lists every file written or changed and every warning.
 
 ## Credits
 

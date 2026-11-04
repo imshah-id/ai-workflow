@@ -29,6 +29,6 @@ Read by the aw- skills through the `## Agent skills` block. Edit by hand or re-r
 
 | State | How |
 | --- | --- |
-| `open` | Open issue, no assignee |
+| `open` | An open issue with no assignee: `gh issue reopen <n>` if it is closed, `gh issue edit <n> --remove-assignee @me` if it is assigned |
 | `in-progress` | `gh issue edit <n> --add-assignee @me` |
 | `done` | `gh issue close <n> --reason completed` |

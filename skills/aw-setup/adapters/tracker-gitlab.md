@@ -29,6 +29,6 @@ Read by the aw- skills through the `## Agent skills` block. Edit by hand or re-r
 
 | State | How |
 | --- | --- |
-| `open` | Open issue, no assignee |
+| `open` | An open issue with no assignee: `glab issue reopen <n>` if it is closed, `glab issue update <n> --unassign` if it is assigned |
 | `in-progress` | `glab issue update <n> --assignee @me` |
 | `done` | `glab issue close <n>`, after a `comment-ticket` that says why, since `glab issue close` takes no comment |

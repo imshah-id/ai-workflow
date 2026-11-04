@@ -231,6 +231,12 @@ function adapterTemplate(title, rows, { defaultAccess = 'write' } = {}) {
   return lines.join('\n') + '\n';
 }
 
+// A checks template's `## Levels` table, one command per listed level.
+function levelsTable(levels) {
+  const rows = levels.map((level) => `| \`${level}\` | \`npm run ${level}\` |`);
+  return ['', '## Levels', '', '| Level | Command |', '| --- | --- |', ...rows].join('\n') + '\n';
+}
+
 function kitWithTemplate(path, content) {
   const kit = validKit();
   kit[`skills/aw-beta/adapters/${path}`] = content;
@@ -314,7 +320,7 @@ test('complete tracker, vcs and checks templates pass', () => {
     'Checks',
     [['run-check', 'read', 'Run the level\'s command from the Levels table.']],
     { defaultAccess: null },
-  ) + '\n## Levels\n\n| Level | Command |\n| --- | --- |\n| `fast` | `npm run lint` |\n| `task` | `npm test -- <file>` |\n| `full` | `npm test` |\n';
+  ) + levelsTable(['fast', 'task', 'full']);
   kit['skills/aw-beta/adapters/domain.md'] = '# Domain docs\n\nNo operations here.\n';
 
   assertNoFindings(runOn(kit));
@@ -323,7 +329,7 @@ test('complete tracker, vcs and checks templates pass', () => {
 test('a checks template missing a check level is reported', () => {
   const template =
     adapterTemplate('Checks', [['run-check', 'read', 'Run the level\'s command.']], { defaultAccess: null }) +
-    '\n## Levels\n\n| Level | Command |\n| --- | --- |\n| `fast` | `npm run lint` |\n| `full` | `npm test` |\n';
+    levelsTable(['fast', 'full']);
   const kit = kitWithTemplate('checks.md', template);
 
   assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/checks\.md: .*"task"/);

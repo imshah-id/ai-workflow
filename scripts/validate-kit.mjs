@@ -32,6 +32,16 @@ function skillFolders(dir) {
     .sort();
 }
 
+// The trimmed cells of one Markdown table row, `| a | b |` → ['a', 'b'].
+function tableCells(line) {
+  return line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim());
+}
+
+// A table cell's text with its code backticks removed: `` `copy` `` → `copy`.
+function unbacktick(cell) {
+  return cell.replace(/`/g, '');
+}
+
 function unquote(value) {
   const match = value.match(/^(["'])(.*)\1$/);
   return match ? match[2] : value;
@@ -220,10 +230,10 @@ function checkNotice(dir) {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.startsWith('|'))
-    .map((line) => line.replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim()));
+    .map(tableCells);
   const findings = [];
   for (const copy of copies) {
-    const row = rows.find((cells) => cells[0].replace(/`/g, '') === copy.folder);
+    const row = rows.find((cells) => unbacktick(cells[0]) === copy.folder);
     const pin = copy.upstream.commit.slice(0, 7);
     const repo = copy.upstream.repo.replace(/\/+$/, '').replace(/\.git$/, '');
     if (!row) {
@@ -232,7 +242,7 @@ function checkNotice(dir) {
       findings.push(`NOTICE.md: entry "${copy.folder}" must link its upstream ${repo} from ${UPSTREAMS_MANIFEST}`);
     } else if (!(row[2] ?? '').includes(pin)) {
       findings.push(`NOTICE.md: entry "${copy.folder}" must show its pin ${pin} from ${UPSTREAMS_MANIFEST}`);
-    } else if ((row[3] ?? '').replace(/`/g, '').toLowerCase() !== 'copy') {
+    } else if (unbacktick(row[3] ?? '').toLowerCase() !== 'copy') {
       findings.push(`NOTICE.md: entry "${copy.folder}" must have kind "copy"`);
     }
   }
@@ -267,78 +277,91 @@ function tableRows(text, heading) {
   const start = lines.findIndex((line) => new RegExp(`^##\\s+${heading}\\s*$`).test(line));
   if (start === -1) return null;
   const rows = [];
-  let inTable = false;
   for (const line of lines.slice(start + 1)) {
-    if (line.trim().startsWith('|')) {
-      inTable = true;
-      rows.push(line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim()));
-    } else if (inTable || /^#{1,2}\s/.test(line)) {
-      break;
-    }
+    if (line.trim().startsWith('|')) rows.push(tableCells(line));
+    else if (rows.length > 0 || /^#{1,2}\s/.test(line)) break;
   }
   return rows.slice(2);
 }
 
 // A checks template gives the command behind each check level in a
 // `## Levels` table.
-function checkLevels(at, text) {
+function checkLevelsTable(at, text) {
   const rows = tableRows(text, 'Levels') ?? [];
-  const levels = new Set(rows.filter((cells) => cells[1]).map((cells) => cells[0].replace(/`/g, '')));
+  const levels = new Set(rows.filter((cells) => cells[1]).map((cells) => unbacktick(cells[0])));
   return CHECK_LEVELS.filter((level) => !levels.has(level)).map(
     (level) => `${at}: no command for check level "${level}" in the Levels table`,
   );
 }
 
-// Adapter templates live in a skill's `adapters/` folder (ADR 0006). Each one
-// whose name starts with an adapter kind states, for every canonical
-// operation of that kind, how it is performed and its access level.
+// The Operations table names each canonical operation of its kind once, says
+// how it is performed, and gives `read` operations `read` and write
+// operations `write` or `draft`.
+function checkOperationRows(at, kind, rows) {
+  const { read, write } = OPERATIONS[kind];
+  const findings = [];
+  const byOperation = new Map();
+  for (const cells of rows) {
+    const operation = unbacktick(cells[0]);
+    if (byOperation.has(operation)) {
+      findings.push(`${at}: "${operation}" is listed more than once in the Operations table`);
+      continue;
+    }
+    if (!read.includes(operation) && !write.includes(operation)) {
+      findings.push(`${at}: "${operation}" is not a canonical ${kind} operation (ADR 0006)`);
+    }
+    byOperation.set(operation, cells);
+  }
+  for (const operation of [...read, ...write]) {
+    const cells = byOperation.get(operation);
+    const access = unbacktick(cells?.[2] ?? '');
+    if (!cells) {
+      findings.push(`${at}: no row for canonical operation "${operation}" in the Operations table`);
+    } else if (!cells[1]) {
+      findings.push(`${at}: "${operation}" does not say how it is performed`);
+    } else if (write.includes(operation) && access !== 'write' && access !== 'draft') {
+      findings.push(`${at}: "${operation}" is a write operation, so its access must be \`write\` or \`draft\`, not "${access}"`);
+    } else if (read.includes(operation) && access !== 'read') {
+      findings.push(`${at}: "${operation}" is always allowed, so its access must be \`read\`, not "${access}"`);
+    }
+  }
+  return findings;
+}
+
+// The adapter kind a template file belongs to, from its name: `<kind>.md` or
+// `<kind>-<variant>.md`; undefined for any other file, such as `domain.md`.
+function adapterKind(file) {
+  return Object.keys(OPERATIONS).find(
+    (kind) => file === `${kind}.md` || (file.startsWith(`${kind}-`) && file.endsWith('.md')),
+  );
+}
+
+function checkAdapterTemplate(at, kind, text) {
+  const findings = kind === 'checks' ? checkLevelsTable(at, text) : [];
+  if (OPERATIONS[kind].write.length > 0 && !/^\*\*Default access:\*\*\s*`(write|draft)`/m.test(text)) {
+    findings.push(`${at}: must declare "**Default access:** \`write\`" or "\`draft\`" for its write operations`);
+  }
+  const rows = tableRows(text, 'Operations');
+  if (rows === null || rows.length === 0) {
+    findings.push(`${at}: has no "## Operations" table stating how each canonical ${kind} operation is performed`);
+    return findings;
+  }
+  return [...findings, ...checkOperationRows(at, kind, rows)];
+}
+
+// Adapter templates live in a skill's `adapters/` folder (ADR 0006). Each
+// tracker, VCS and checks template states, for every canonical operation of
+// its kind, how it is performed and its access level.
 function checkAdapterTemplates(dir) {
   const findings = [];
   for (const folder of skillFolders(dir)) {
     const adaptersDir = join(dir, 'skills', folder, 'adapters');
     if (!existsSync(adaptersDir)) continue;
     for (const file of readdirSync(adaptersDir).sort()) {
-      const kind = Object.keys(OPERATIONS).find(
-        (name) => file === `${name}.md` || (file.startsWith(`${name}-`) && file.endsWith('.md')),
-      );
+      const kind = adapterKind(file);
       if (!kind) continue;
-      const at = `skills/${folder}/adapters/${file}`;
       const text = readFileSync(join(adaptersDir, file), 'utf8');
-      if (kind === 'checks') findings.push(...checkLevels(at, text));
-      const rows = tableRows(text, 'Operations');
-      const { read, write } = OPERATIONS[kind];
-      if (rows === null || rows.length === 0) {
-        findings.push(`${at}: has no "## Operations" table stating how each canonical ${kind} operation is performed`);
-        continue;
-      }
-      if (write.length > 0 && !/^\*\*Default access:\*\*\s*`(write|draft)`/m.test(text)) {
-        findings.push(`${at}: must declare "**Default access:** \`write\`" or "\`draft\`" for its write operations`);
-      }
-      const byOperation = new Map();
-      for (const cells of rows) {
-        const operation = cells[0].replace(/`/g, '');
-        if (byOperation.has(operation)) {
-          findings.push(`${at}: "${operation}" is listed more than once in the Operations table`);
-        } else if (!read.includes(operation) && !write.includes(operation)) {
-          findings.push(`${at}: "${operation}" is not a canonical ${kind} operation (ADR 0006)`);
-        }
-        if (!byOperation.has(operation)) byOperation.set(operation, cells);
-      }
-      for (const operation of [...read, ...write]) {
-        const cells = byOperation.get(operation);
-        if (!cells) {
-          findings.push(`${at}: no row for canonical operation "${operation}" in the Operations table`);
-          continue;
-        }
-        const access = (cells[2] ?? '').replace(/`/g, '');
-        if (!cells[1]) {
-          findings.push(`${at}: "${operation}" does not say how it is performed`);
-        } else if (write.includes(operation) && access !== 'write' && access !== 'draft') {
-          findings.push(`${at}: "${operation}" is a write operation, so its access must be \`write\` or \`draft\`, not "${access}"`);
-        } else if (read.includes(operation) && access !== 'read') {
-          findings.push(`${at}: "${operation}" is always allowed, so its access must be \`read\`, not "${access}"`);
-        }
-      }
+      findings.push(...checkAdapterTemplate(`skills/${folder}/adapters/${file}`, kind, text));
     }
   }
   return findings;

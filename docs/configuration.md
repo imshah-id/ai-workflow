@@ -4,9 +4,9 @@ How kit skills find a repo's configuration, what they may do with it, and what t
 
 ## Finding the adapters
 
-`/aw-setup` writes four adapters to `docs/agents/` and an `## Agent skills` block that points to them, in `AGENTS.md`, or in `CLAUDE.md` (root or `.claude/`) when only that exists. A skill looks for the block in those files and follows its pointers; it never names a `docs/agents/` file on its own.
+`/aw-setup` writes three adapters and the domain doc to `docs/agents/`, and an `## Agent skills` block that points to them, in `AGENTS.md`, or in `CLAUDE.md` (root or `.claude/`) when only that exists. A skill looks for the block in those files and follows its pointers; it never names a `docs/agents/` file on its own.
 
-| Subsection | Adapter | Holds |
+| Subsection | File | Holds |
 | --- | --- | --- |
 | `### Tracker` | `tracker.md` | Tracker kind, ticket key, ticket states, how each tracker operation is done, access |
 | `### VCS` | `vcs.md` | Base branch, protected branches, branch naming, commit convention, review host, how each VCS operation is done, access |

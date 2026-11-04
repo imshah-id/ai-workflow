@@ -27,7 +27,7 @@ Basic protection with no hook scripts (ADR 0009). The agent never force-pushes o
   "Bash(git commit * -n*)"
   ```
 
-  `--force*` also covers `--force-with-lease` and `--force-if-includes`, and `+*` covers a forced refspec such as `+main`. When the harness runs shell commands through a PowerShell tool as well (Claude Code on Windows), offer each entry a second time with `PowerShell(` in place of `Bash(`.
+  `--force*` also covers `--force-with-lease` and `--force-if-includes`, and `+*` covers a forced refspec such as `+main`. The patterns match the command as written, so a bundled short flag such as `git commit -an` slips past them. Say so when offering: the entries are a backstop for the rule, not a replacement for it. When the harness runs shell commands through a PowerShell tool as well (Claude Code on Windows), offer each entry a second time with `PowerShell(` in place of `Bash(`.
 - **Write, on yes:** add only the missing entries to the `permissions.deny` array, creating `permissions` or `deny` if absent. Keep every other setting and entry as it is, and write valid JSON.
 
 Other harnesses have no `permissions.deny`; skip this offer there.
@@ -43,7 +43,7 @@ Other harnesses have no `permissions.deny`; skip this offer there.
 
 The two kits offer competing skills for the same phases, so Pocock's plugin stays installed at user scope and is turned off per repo.
 
-- **Explore:** Pocock's plugin is enabled in this repo when an `enabledPlugins` key naming it (`mattpocock-skills@<marketplace>`, as `claude plugin list` shows) is `true` in `~/.claude/settings.json` and not set to `false` in `.claude/settings.json` or `.claude/settings.local.json`. Skills offered as `mattpocock-skills:<name>` in this session also show it is on.
+- **Explore:** find the `enabledPlugins` key naming Pocock's plugin (`mattpocock-skills@<marketplace>`, as `claude plugin list` shows) in `.claude/settings.local.json`, `.claude/settings.json` and `~/.claude/settings.json`. The most specific file that sets the key decides, in that order: the plugin is enabled in this repo when that value is `true`. Skills offered as `mattpocock-skills:<name>` in this session also show it is on.
 - **Offer**, when enabled, to turn it off for this repo only: set `"mattpocock-skills@<marketplace>": false` under `enabledPlugins` in `.claude/settings.json`, or in `.claude/settings.local.json` if the user prefers. Update an existing key rather than adding a second one. On no, mention in the report that both kits' skills stay on.
 
 The user-scope install is never touched.
