@@ -1,0 +1,22 @@
+{
+  "upstreams": {
+    "mattpocock": {
+      "repo": "https://github.com/mattpocock/skills",
+      "commit": "d1478fcb140db0b93c0c8df17bcfd311844749d0",
+      "license": {
+        "path": "LICENSE",
+        "blob": "f1dd2c09108dde1a5f56097cee8461b3ea834499"
+      },
+      "skills": {
+        "grilling": {
+          "path": "skills/productivity/grilling",
+          "tree": "f551b6e0d219fdda0b6abf277f8f915b3127d1e9",
+          "files": {
+            "SKILL.md": "d2f09a18e6a6c65c55f1271ba08dfeaf06f0bed3",
+            "agents/openai.yaml": "ddbdb96139c0c1dfe6bca698f39d0465674b8a39"
+          }
+        }
+      }
+    }
+  }
+}

@@ -16,5 +16,7 @@
     "tdd",
     "code-review"
   ],
-  "skills": []
+  "skills": [
+    "./skills/aw-grilling"
+  ]
 }

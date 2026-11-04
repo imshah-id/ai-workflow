@@ -6,7 +6,7 @@ Claude Code is the reference harness. Other harnesses (Codex, OpenCode, Cursor a
 
 The vocabulary is in [`GLOSSARY.md`](GLOSSARY.md) and the design decisions in [`docs/adr/`](docs/adr/).
 
-> Status: pre-release. The repo is a valid plugin and skills source, but ships no skills yet.
+> Status: pre-release. The repo is a valid plugin and skills source. It ships one skill so far: `aw-grilling`, a copy of Matt Pocock's `grilling`.
 
 ## Install
 
@@ -79,9 +79,25 @@ claude plugin validate . --strict    # plugin and marketplace manifests
 - every skill is listed in `.claude-plugin/plugin.json`, and every listed skill exists;
 - user-invoked skills carry both `disable-model-invocation: true` and an `agents/openai.yaml` with `policy: allow_implicit_invocation: false`. A skill that declares either flag counts as user-invoked, so a skill meant to be user-invoked that declares neither is not caught;
 - the version in `plugin.json` is plain semver `X.Y.Z` and matches the marketplace entry;
+- every copy passes the sync `check` (below), which also requires its `LICENSE.upstream`;
+- every copy has a `NOTICE.md` entry that shows its pin and the kind `copy`;
 - text files use LF line endings.
 
 It prints one finding per line and exits non-zero when it finds any. CI runs all three commands on every pull request.
+
+### Copies and upstream sync
+
+`upstreams.json` pins each upstream to a commit, records why that pin was chosen, and lists the skills copied from it. `upstreams.lock.json` holds the git tree hash of each copied upstream folder at the pin and the blob hash of every file in it. Both are maintained through `scripts/sync-upstreams.mjs` (ADR 0015):
+
+```sh
+node scripts/sync-upstreams.mjs install   # clone each upstream at its pin, write the copies and the lock
+node scripts/sync-upstreams.mjs check     # offline: each copy equals its upstream plus the mechanical transform
+node scripts/sync-upstreams.mjs report    # what changed upstream since each pin
+```
+
+`install` writes each copy to `skills/aw-<name>/` with the rename applied: the folder, the `name:` field, and references to other copied skills written as `"name"`, `` `name` `` or `/name`. It keeps `agents/` and adds the upstream license as `LICENSE.upstream`. A copy must not be edited by hand: `check` fails on any other change, and on a missing rename. An upstream's `repo` can be a local directory holding a git repo, which is how the tests run offline.
+
+To move a pin, change `commit` and `reason` in `upstreams.json`, run `install`, and update the pin in the copy's `NOTICE.md` entry. New copies also need a `NOTICE.md` entry and a line in `plugin.json`'s `skills`.
 
 A release is a semver tag `vX.Y.Z`, the same `version` in `.claude-plugin/plugin.json` and the marketplace entry, and a hand-written `CHANGELOG.md` entry (ADR 0015). Without the version bump, installed plugin users never see the update.
 
