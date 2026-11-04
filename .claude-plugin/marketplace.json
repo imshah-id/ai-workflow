@@ -1,0 +1,22 @@
+{
+  "name": "samfaina",
+  "description": "samfaina's Claude Code plugins. Holds the ai-workflow kit.",
+  "owner": {
+    "name": "samfaina",
+    "url": "https://github.com/samfaina"
+  },
+  "plugins": [
+    {
+      "name": "ai-workflow",
+      "source": "./",
+      "description": "A tracker- and VCS-agnostic workflow kit of aw- prefixed agent skills.",
+      "version": "0.0.0",
+      "category": "engineering",
+      "keywords": [
+        "workflow",
+        "skills",
+        "spec"
+      ]
+    }
+  ]
+}
