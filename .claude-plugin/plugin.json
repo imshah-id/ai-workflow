@@ -17,6 +17,16 @@
     "code-review"
   ],
   "skills": [
-    "./skills/aw-grilling"
+    "./skills/aw-grilling",
+    "./skills/aw-grill-with-docs",
+    "./skills/aw-domain-modeling",
+    "./skills/aw-research",
+    "./skills/aw-prototype",
+    "./skills/aw-tdd",
+    "./skills/aw-diagnosing-bugs",
+    "./skills/aw-codebase-design",
+    "./skills/aw-improve-codebase-architecture",
+    "./skills/aw-writing-for-agents",
+    "./skills/aw-handoff"
   ]
 }

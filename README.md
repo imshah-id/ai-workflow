@@ -6,7 +6,7 @@ Claude Code is the reference harness. Other harnesses (Codex, OpenCode, Cursor a
 
 The vocabulary is in [`GLOSSARY.md`](GLOSSARY.md) and the design decisions in [`docs/adr/`](docs/adr/).
 
-> Status: pre-release. The repo is a valid plugin and skills source. It ships one skill so far: `aw-grilling`, a copy of Matt Pocock's `grilling`.
+> Status: pre-release. The repo is a valid plugin and skills source. It ships eleven copies of Matt Pocock's skills so far: `aw-grilling`, `aw-grill-with-docs`, `aw-domain-modeling`, `aw-research`, `aw-prototype`, `aw-tdd`, `aw-diagnosing-bugs`, `aw-codebase-design`, `aw-improve-codebase-architecture`, `aw-writing-for-agents` and `aw-handoff`.
 
 ## Install
 
