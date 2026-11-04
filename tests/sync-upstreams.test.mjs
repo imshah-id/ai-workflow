@@ -147,6 +147,39 @@ test('install renames references to other copied skills and leaves other uses of
   );
 });
 
+// A kit that also copies `gamma`, which calls two other copies in one
+// sentence, the way grill-with-docs calls grilling and domain-modeling.
+function kitWithCaller() {
+  const files = upstreamFiles();
+  files['skills/group/gamma/SKILL.md'] =
+    '---\nname: gamma\ndescription: Calls two copies.\n---\n\nCall the Skill tool twice, for "alpha" and "beta".\n';
+  return installedKit({
+    upstream: makeUpstream(files),
+    edit: (kit, upstream) => {
+      Object.assign(kit, manifests(['aw-alpha', 'aw-beta', 'aw-gamma']));
+      kit['upstreams.json'].upstreams.fixture.skills.gamma = 'skills/group/gamma';
+      kit['NOTICE.md'] = notice(['aw-alpha', 'aw-beta', 'aw-gamma'].map((name) => noticeRow(name, upstream)));
+    },
+  });
+}
+
+test('install renames every copied skill one sentence calls', () => {
+  const { dir } = kitWithCaller();
+
+  assert.equal(
+    read(dir, 'skills/aw-gamma/SKILL.md'),
+    '---\nname: aw-gamma\ndescription: Calls two copies.\n---\n\nCall the Skill tool twice, for "aw-alpha" and "aw-beta".\n',
+  );
+  assertNoFindings(validate(dir));
+});
+
+test('a copy missing one of the renames in a sentence is reported', () => {
+  const { dir } = kitWithCaller();
+  write(dir, 'skills/aw-gamma/SKILL.md', read(dir, 'skills/aw-gamma/SKILL.md').replace('"aw-beta"', '"beta"'));
+
+  assertOneFinding(validate(dir), /^skills\/aw-gamma\/SKILL\.md: .*rename is missing/);
+});
+
 test('install lists the quoted uses of a copied name it left alone, for the maintainer to judge', () => {
   const { install } = installedKit();
 
