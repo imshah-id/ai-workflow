@@ -1,8 +1,8 @@
 // Spec check CLI, shipped inside the aw-check-spec skill (ADR 0012).
 //
-// Usage: node <skill-folder>/scripts/check-spec.mjs [repo-dir]
+// Usage: node <skill-folder>/scripts/check-spec.mjs [repo-root]
 //
-// Validates every spec at docs/specs/<slug>/spec.md under repo-dir (default:
+// Validates every spec at docs/specs/<slug>/spec.md under repo-root (default:
 // the current directory) and prints one finding per line as
 // `<path>: <message>`. Exits 0 when every spec is valid or there are no
 // specs, 1 when there are findings, 2 on a usage error.
@@ -12,20 +12,26 @@ import { join, resolve } from 'node:path';
 
 const SPECS_DIR = 'docs/specs';
 
-const repoDir = resolve(process.argv[2] ?? '.');
-if (!existsSync(repoDir) || !statSync(repoDir).isDirectory()) {
-  console.error(`usage: node check-spec.mjs [repo-dir]\nnot a directory: ${repoDir}`);
+const repoRoot = resolve(process.argv[2] ?? '.');
+if (!existsSync(repoRoot) || !statSync(repoRoot).isDirectory()) {
+  console.error(`usage: node check-spec.mjs [repo-root]\nnot a directory: ${repoRoot}`);
   process.exit(2);
 }
 
-function specFolders(dir) {
+// The entries directly under docs/specs/: slug folders, and Markdown files
+// written where a slug folder belongs.
+function specsEntries(dir) {
   const specsDir = join(dir, SPECS_DIR);
-  if (!existsSync(specsDir)) return [];
-  return readdirSync(specsDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name)
-    .sort();
+  if (!existsSync(specsDir)) return { slugs: [], loose: [] };
+  const entries = readdirSync(specsDir, { withFileTypes: true });
+  const names = (keep) => entries.filter(keep).map((entry) => entry.name).sort();
+  return {
+    slugs: names((entry) => entry.isDirectory()),
+    loose: names((entry) => entry.isFile() && /\.md$/i.test(entry.name) && !/^readme\.md$/i.test(entry.name)),
+  };
 }
+
+const isFile = (path) => existsSync(path) && statSync(path).isFile();
 
 function unquote(value) {
   const match = value.match(/^(["'])(.*)\1$/);
@@ -54,7 +60,7 @@ function parseFrontmatter(lines) {
 function checkSpec(dir, slug) {
   const at = `${SPECS_DIR}/${slug}/spec.md`;
   const full = join(dir, at);
-  if (!existsSync(full)) return [`${SPECS_DIR}/${slug}: spec folder has no spec.md`];
+  if (!isFile(full)) return [`${SPECS_DIR}/${slug}: spec folder has no spec.md file`];
   const lines = specLines(readFileSync(full, 'utf8'));
   const frontmatter = parseFrontmatter(lines);
   if (frontmatter === null) {
@@ -72,13 +78,14 @@ function checkSpec(dir, slug) {
   ].map((message) => `${at}: ${message}`);
 }
 
-// One evidence entry per `;` or `<br>`-separated part of a cell, as
-// { kind, value } with backticks dropped from the value. A part with no
+// One evidence entry per part of a cell, as { kind, value } with backticks
+// dropped from the value. Entries are separated by `;` or `<br>` followed by
+// the next kind, so a manual reason may itself hold a `;`. A part with no
 // known kind keeps its whole text as the value and a null kind.
 function evidenceEntries(cell) {
   return cell
-    .split(/;|<br\s*\/?>/i)
-    .map((part) => part.trim())
+    .split(/(?:;|<br\s*\/?>)\s*(?=(?:test|verify|manual):)/i)
+    .map((part) => part.trim().replace(/(?:;|<br\s*\/?>)$/i, '').trim())
     .filter(Boolean)
     .map((part) => {
       const match = part.match(/^(test|verify|manual):\s*(.*)$/);
@@ -91,17 +98,23 @@ function evidenceEntries(cell) {
 // A `test:` or `verify:` path relative to the repo root, either separator.
 const repoPath = (dir, path) => join(dir, ...path.split(/[\\/]+/));
 
-function checkTestEvidence(dir, id, path) {
-  const full = repoPath(dir, path);
-  if (!existsSync(full) || !statSync(full).isFile()) {
-    return [`${id}: test file "${path}" does not exist`];
-  }
-  const mentions = new RegExp(`\\b${id}(?!\\d)`);
-  if (!mentions.test(readFileSync(full, 'utf8'))) {
-    return [`${id}: test file "${path}" does not mention ${id}`];
-  }
-  return [];
-}
+// How each kind of evidence resolves: a finding message, or null when the
+// entry resolves.
+const RESOLVES = {
+  test(dir, id, path) {
+    if (!path || !isFile(repoPath(dir, path))) return `test file "${path}" does not exist`;
+    const mentions = new RegExp(`\\b${id}(?!\\d)`);
+    return mentions.test(readFileSync(repoPath(dir, path), 'utf8'))
+      ? null
+      : `test file "${path}" does not mention ${id}`;
+  },
+  verify(dir, id, path) {
+    return path && existsSync(repoPath(dir, path)) ? null : `verify path "${path}" does not exist`;
+  },
+  manual(dir, id, reason) {
+    return reason ? null : 'manual evidence needs a reason, as "manual: <what was checked and why no test>"';
+  },
+};
 
 function checkEvidence(dir, rows) {
   const findings = [];
@@ -109,22 +122,17 @@ function checkEvidence(dir, rows) {
     const entries = cells.flatMap(evidenceEntries);
     if (entries.length === 0) findings.push(`${id}: no evidence in Traceability; an implemented spec needs some`);
     for (const { kind, value } of entries) {
-      if (kind === null) {
-        findings.push(`${id}: evidence "${value}" must start with test:, verify: or manual:`);
-      }
-      if (kind === 'test') findings.push(...checkTestEvidence(dir, id, value));
-      if (kind === 'verify' && (!value || !existsSync(repoPath(dir, value)))) {
-        findings.push(`${id}: verify path "${value}" does not exist`);
-      }
-      if (kind === 'manual' && !value) {
-        findings.push(`${id}: manual evidence needs a reason, as "manual: <what was checked and why no test>"`);
-      }
+      const problem = kind === null
+        ? `evidence "${value}" must start with test:, verify: or manual:`
+        : RESOLVES[kind](dir, id, value);
+      if (problem) findings.push(`${id}: ${problem}`);
     }
   }
   return findings;
 }
 
-// Statuses from which no blocking question may stay open.
+// Statuses from which no blocking question may stay open. A superseded spec
+// is left out: it may have been superseded while still a draft.
 const SETTLED = ['approved', 'implemented'];
 
 // A list item in Open questions that starts with `BLOCKS:` (bold or not) is
@@ -175,6 +183,9 @@ function traceabilityRows(lines) {
 function checkTraceability(criteria, rows, hasSection) {
   const findings = [];
   const seen = new Set();
+  if (criteria.length === 0) {
+    findings.push('Acceptance criteria defines no AC-n; write each as "- **AC-1**: Given …, when …, then …"');
+  }
   for (const id of criteria) {
     if (seen.has(id)) findings.push(`${id} is defined more than once in Acceptance criteria`);
     seen.add(id);
@@ -276,16 +287,19 @@ function checkFrontmatter(dir, fields) {
   return findings;
 }
 
-const folders = specFolders(repoDir);
-if (folders.length === 0) {
-  console.error(`no specs found under ${SPECS_DIR}/ in ${repoDir}; nothing to check`);
+const { slugs, loose } = specsEntries(repoRoot);
+if (slugs.length === 0 && loose.length === 0) {
+  console.error(`no specs found under ${SPECS_DIR}/ in ${repoRoot}; nothing to check`);
   process.exit(0);
 }
-const findings = folders.flatMap((slug) => checkSpec(repoDir, slug));
+const findings = [
+  ...loose.map((name) => `${SPECS_DIR}/${name}: a spec lives at ${SPECS_DIR}/<slug>/spec.md; move it into a slug folder`),
+  ...slugs.flatMap((slug) => checkSpec(repoRoot, slug)),
+];
 
 for (const finding of findings) console.log(finding);
 if (findings.length > 0) {
-  console.error(`${findings.length} finding(s) in ${folders.length} spec(s) under ${SPECS_DIR}/`);
+  console.error(`${findings.length} finding(s) in ${slugs.length} spec(s) under ${SPECS_DIR}/`);
   process.exit(1);
 }
-console.error(`${folders.length} spec(s) valid under ${SPECS_DIR}/`);
+console.error(`${slugs.length} spec(s) valid under ${SPECS_DIR}/`);

@@ -19,6 +19,9 @@ import {
 
 const SPEC = 'docs/specs/login/spec.md';
 
+// A finding about the login spec whose message matches `pattern`.
+const finding = (pattern) => new RegExp(`^docs/specs/login/spec\\.md: .*${pattern.source}`);
+
 // The sections of a valid spec, in template order. Each test replaces or
 // drops one to break exactly one rule.
 function sections() {
@@ -34,7 +37,7 @@ function sections() {
     'Slice plan': '1. Sign-in form (AC-1, AC-2, AC-3). AFK.\n',
     'Test strategy': 'Seam: the HTTP endpoint.\n',
     Traceability:
-      '| AC | Evidence |\n| --- | --- |\n' +
+      '| Acceptance criterion | Evidence |\n| --- | --- |\n' +
       '| AC-1 | test: `tests/login.test.mjs` |\n' +
       '| AC-2 | verify: `docs/specs/login/verify/` |\n' +
       '| AC-3 | manual: support flow needs a staff account we cannot script |\n',
@@ -88,19 +91,19 @@ test('a spec without frontmatter is reported', () => {
   const repo = validRepo();
   repo[SPEC] = repo[SPEC].replace(/^---\n[\s\S]*?\n---\n/, '');
 
-  assertOneFinding(runOn(repo), /^docs\/specs\/login\/spec\.md: .*frontmatter/);
+  assertOneFinding(runOn(repo), finding(/frontmatter/));
 });
 
 test('a spec with an unknown status value is reported', () => {
   const repo = validRepo(specText({ frontmatter: 'status: done\n' }));
 
-  assertOneFinding(runOn(repo), /^docs\/specs\/login\/spec\.md: .*status "done"/);
+  assertOneFinding(runOn(repo), finding(/status "done"/));
 });
 
 test('a spec whose frontmatter has no status is reported', () => {
   const repo = validRepo(specText({ frontmatter: 'ticket: "#12"\n' }));
 
-  assertOneFinding(runOn(repo), /^docs\/specs\/login\/spec\.md: .*status/);
+  assertOneFinding(runOn(repo), finding(/status/));
 });
 
 // A superseded login spec, plus the valid spec that replaces it.
@@ -118,28 +121,28 @@ test('a superseded spec that names an existing replacement passes', () => {
 test('a superseded spec without superseded-by is reported', () => {
   assertOneFinding(
     runOn(supersededRepo('status: superseded\n')),
-    /^docs\/specs\/login\/spec\.md: .*superseded-by/,
+    finding(/superseded-by/),
   );
 });
 
 test('a superseded-by that names no existing spec is reported', () => {
   assertOneFinding(
     runOn(supersededRepo('status: superseded\nsuperseded-by: login-v3\n')),
-    /^docs\/specs\/login\/spec\.md: .*login-v3/,
+    finding(/login-v3/),
   );
 });
 
 test('superseded-by on a spec that is not superseded is reported', () => {
   assertOneFinding(
     runOn(supersededRepo('status: implemented\nsuperseded-by: login-v2\n')),
-    /^docs\/specs\/login\/spec\.md: .*superseded-by/,
+    finding(/superseded-by/),
   );
 });
 
 test('a frontmatter field outside status, ticket and superseded-by is reported', () => {
   const repo = validRepo(specText({ frontmatter: 'status: implemented\nowner: sam\n' }));
 
-  assertOneFinding(runOn(repo), /^docs\/specs\/login\/spec\.md: .*"owner"/);
+  assertOneFinding(runOn(repo), finding(/"owner"/));
 });
 
 // Sections: every `## <section>` of the template, and the Always, Ask first
@@ -149,7 +152,7 @@ test('a spec missing a required section is reported', () => {
   const parts = sections();
   delete parts['Out of scope'];
 
-  assertOneFinding(runOn(validRepo(specText({ parts }))), /^docs\/specs\/login\/spec\.md: .*"Out of scope"/);
+  assertOneFinding(runOn(validRepo(specText({ parts }))), finding(/"Out of scope"/));
 });
 
 test('a section heading that only appears inside a code block is reported as missing', () => {
@@ -157,14 +160,14 @@ test('a section heading that only appears inside a code block is reported as mis
   delete parts['Test strategy'];
   parts.Design += '\n```markdown\n## Test strategy\n```\n';
 
-  assertOneFinding(runOn(validRepo(specText({ parts }))), /^docs\/specs\/login\/spec\.md: .*"Test strategy"/);
+  assertOneFinding(runOn(validRepo(specText({ parts }))), finding(/"Test strategy"/));
 });
 
 test('Boundaries without its Ask first tier is reported', () => {
   const parts = sections();
   parts.Boundaries = parts.Boundaries.replace('### Ask first\n\nNew dependencies.\n\n', '');
 
-  assertOneFinding(runOn(validRepo(specText({ parts }))), /^docs\/specs\/login\/spec\.md: .*Boundaries.*"Ask first"/);
+  assertOneFinding(runOn(validRepo(specText({ parts }))), finding(/Boundaries.*"Ask first"/));
 });
 
 // Acceptance criteria: each `AC-n` is defined once, as a list item or heading
@@ -174,21 +177,21 @@ test('an AC-n defined twice is reported', () => {
   const parts = sections();
   parts['Acceptance criteria'] += '- **AC-2**: Given a typo, when they sign in, then they see an error.\n';
 
-  assertOneFinding(runOn(validRepo(specText({ parts }))), /^docs\/specs\/login\/spec\.md: .*AC-2.*more than once/);
+  assertOneFinding(runOn(validRepo(specText({ parts }))), finding(/AC-2.*more than once/));
 });
 
 test('an AC-n without a Traceability row is reported', () => {
   const parts = sections();
   parts.Traceability = parts.Traceability.replace(/\| AC-3 \|.*\n/, '');
 
-  assertOneFinding(runOn(validRepo(specText({ parts }))), /^docs\/specs\/login\/spec\.md: .*AC-3.*Traceability/);
+  assertOneFinding(runOn(validRepo(specText({ parts }))), finding(/AC-3.*Traceability/));
 });
 
 test('a Traceability row for an AC-n that is not defined is reported', () => {
   const parts = sections();
   parts.Traceability += '| AC-4 | manual: checked by hand because it is a one-off |\n';
 
-  assertOneFinding(runOn(validRepo(specText({ parts }))), /^docs\/specs\/login\/spec\.md: .*AC-4/);
+  assertOneFinding(runOn(validRepo(specText({ parts }))), finding(/AC-4/));
 });
 
 test('AC-1 is not mistaken for AC-10 in Traceability', () => {
@@ -197,7 +200,7 @@ test('AC-1 is not mistaken for AC-10 in Traceability', () => {
   parts.Traceability = parts.Traceability.replace('| AC-1 |', '| AC-10 |');
   const spec = specText({ frontmatter: 'status: approved\n', parts });
 
-  assertOneFinding(runOn(validRepo(spec)), /^docs\/specs\/login\/spec\.md: .*AC-1\b.*Traceability/);
+  assertOneFinding(runOn(validRepo(spec)), finding(/AC-1\b.*Traceability/));
 });
 
 // Open questions: a list item starting with `BLOCKS:` is an open blocking
@@ -217,14 +220,14 @@ test('an open BLOCKS: question in a draft spec passes', () => {
 test('an open BLOCKS: question in an approved spec is reported', () => {
   assertOneFinding(
     runOn(withQuestion('approved', 'BLOCKS: which session store?')),
-    /^docs\/specs\/login\/spec\.md: .*BLOCKS: which session store\?/,
+    finding(/BLOCKS: which session store\?/),
   );
 });
 
 test('an open BLOCKS: question in an implemented spec is reported', () => {
   assertOneFinding(
     runOn(withQuestion('implemented', '**BLOCKS:** which session store?')),
-    /^docs\/specs\/login\/spec\.md: .*which session store\?/,
+    finding(/which session store\?/),
   );
 });
 
@@ -248,7 +251,7 @@ function withEvidence(ac, evidence, status = 'implemented') {
 test('a test: file that does not exist is reported', () => {
   assertOneFinding(
     runOn(withEvidence('AC-1', 'test: `tests/logout.test.mjs`')),
-    /^docs\/specs\/login\/spec\.md: .*AC-1.*tests\/logout\.test\.mjs/,
+    finding(/AC-1.*tests\/logout\.test\.mjs/),
   );
 });
 
@@ -256,28 +259,28 @@ test('a test: file that does not mention its AC-n is reported', () => {
   const repo = withEvidence('AC-1', 'test: `tests/login.test.mjs`');
   repo['tests/login.test.mjs'] = "test('AC-10: a guest sees sign-in', () => {});\n";
 
-  assertOneFinding(runOn(repo), /^docs\/specs\/login\/spec\.md: .*AC-1\b.*tests\/login\.test\.mjs.*mention/);
+  assertOneFinding(runOn(repo), finding(/AC-1\b.*tests\/login\.test\.mjs.*mention/));
 });
 
 test('a verify: path that does not exist is reported', () => {
   assertOneFinding(
     runOn(withEvidence('AC-2', 'verify: `docs/specs/login/verify/ac-9.md`')),
-    /^docs\/specs\/login\/spec\.md: .*AC-2.*docs\/specs\/login\/verify\/ac-9\.md/,
+    finding(/AC-2.*docs\/specs\/login\/verify\/ac-9\.md/),
   );
 });
 
 test('a manual: entry without a reason is reported', () => {
-  assertOneFinding(runOn(withEvidence('AC-3', 'manual:')), /^docs\/specs\/login\/spec\.md: .*AC-3.*manual.*reason/);
+  assertOneFinding(runOn(withEvidence('AC-3', 'manual:')), finding(/AC-3.*manual.*reason/));
 });
 
 test('an implemented spec with a row that has no evidence is reported', () => {
-  assertOneFinding(runOn(withEvidence('AC-3', '')), /^docs\/specs\/login\/spec\.md: .*AC-3.*no evidence/);
+  assertOneFinding(runOn(withEvidence('AC-3', '')), finding(/AC-3.*no evidence/));
 });
 
 test('an implemented spec with evidence of no known kind is reported', () => {
   assertOneFinding(
     runOn(withEvidence('AC-3', 'pending')),
-    /^docs\/specs\/login\/spec\.md: .*AC-3.*"pending".*test:, verify: or manual:/,
+    finding(/AC-3.*"pending".*test:, verify: or manual:/),
   );
 });
 
@@ -313,14 +316,14 @@ test('a test: path with backslashes resolves', () => {
 test('a test: path with backslashes that does not exist is reported', () => {
   assertOneFinding(
     runOn(withEvidence('AC-1', String.raw`test: tests\logout.test.mjs`)),
-    /^docs\/specs\/login\/spec\.md: .*AC-1.*tests\\logout\.test\.mjs/,
+    finding(/AC-1.*tests\\logout\.test\.mjs/),
   );
 });
 
 test('a cell with several entries checks each one', () => {
   assertOneFinding(
     runOn(withEvidence('AC-1', 'test: `tests/login.test.mjs`; verify: `docs/specs/login/verify/` <br> manual:')),
-    /^docs\/specs\/login\/spec\.md: .*AC-1.*manual.*reason/,
+    finding(/AC-1.*manual.*reason/),
   );
 });
 
@@ -339,4 +342,27 @@ test('the shipped spec template passes as a draft spec', () => {
 
 test('a valid spec saved with a byte-order mark passes', () => {
   assertNoFindings(runOn(validRepo(`\uFEFF${crlf(specText())}`)));
+});
+
+test('a spec whose Acceptance criteria defines no AC-n is reported', () => {
+  const parts = sections();
+  parts['Acceptance criteria'] = 'To be written.\n';
+  parts.Traceability = '| Acceptance criterion | Evidence |\n| --- | --- |\n';
+
+  assertOneFinding(runOn(validRepo(specText({ parts }))), finding(/Acceptance criteria defines no AC-n/));
+});
+
+test('a manual: reason may contain a semicolon', () => {
+  assertNoFindings(runOn(withEvidence('AC-3', 'manual: checked on staging; no test because it needs a staff login')));
+});
+
+test('a spec file outside a slug folder is reported', () => {
+  assertOneFinding(runOn({ 'docs/specs/login.md': specText() }), /^docs\/specs\/login\.md: .*docs\/specs\/<slug>\/spec\.md/);
+});
+
+test('a spec.md that is a folder is reported, not a crash', () => {
+  const repo = validRepo();
+  repo['docs/specs/logout/spec.md/notes.md'] = 'Not a spec.\n';
+
+  assertOneFinding(runOn(repo), /^docs\/specs\/logout: .*spec\.md/);
 });

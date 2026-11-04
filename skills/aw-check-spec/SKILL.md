@@ -1,6 +1,6 @@
 ---
 name: aw-check-spec
-description: Spec check. Validates the specs under docs/specs/ with a bundled Node script: frontmatter and status, required sections, AC-n traceability, open BLOCKS: questions, and evidence at implemented. Use after writing or editing a spec, before spec approval, and before setting a spec to implemented.
+description: Spec check for the specs under docs/specs/. Use after writing or editing a spec, before spec approval, and before setting a spec to implemented.
 ---
 
 # Check spec
@@ -18,18 +18,18 @@ Mechanical validation of every spec at `docs/specs/<slug>/spec.md`. The script i
 
    `repo-root` defaults to the current directory. Each stdout line is one finding, `<path>: <message>`; stderr carries the summary.
 
-   - Exit 0: every spec is valid, or there are no specs (stderr says "no specs found"). Report it in those words.
+   - Exit 0: report the stderr summary as it stands, either "<n> spec(s) valid" or "no specs found … nothing to check".
    - Exit 1: report every finding verbatim. The spec is not valid until a rerun exits 0.
    - Exit 2: the repo root is wrong. Rerun with the right one.
 
    Done when the script has exited and its result is reported.
-3. **Node not found: walk the checklist by reading.** Start the report with the line `check-spec not run: Node not found`. Read each spec and apply every rule under **Rules**, reporting each violation as `<path>: <message>`. End the report with `Result: not script-verified`, whatever the walk found: a reading is never a pass, so the verdict stays "not script-verified" even when no violation turned up. Done when every rule has been applied to every spec.
+3. **Node not found: walk the checklist by reading.** Start the report with the line `check-spec not run: Node not found`. Read each spec and apply every rule under **Rules**, reporting each violation as `<path>: <message>`. End the report with `Result: not script-verified`, even when the walk found no violation: only the script can pass a spec. Done when every rule has been applied to every spec.
 
 ## Rules
 
 The script and the fallback walk apply the same rules. Specs may use LF or CRLF line endings. Headings and list items inside fenced code blocks do not count.
 
-**Specs.** Each folder under `docs/specs/` holds a `spec.md`. A repo with no spec folders has nothing to check, which is not an error.
+**Specs.** Each folder under `docs/specs/` holds a `spec.md` file. A Markdown file directly in `docs/specs/`, other than a README, is a misplaced spec. A repo with neither has nothing to check, which is not an error.
 
 **Frontmatter.** The spec opens with a `---` block holding only these fields:
 
@@ -39,15 +39,15 @@ The script and the fallback walk apply the same rules. Specs may use LF or CRLF 
 
 **Sections.** Each of these is a `## ` heading: Problem and goal, Acceptance criteria, Out of scope, Boundaries, Design, Slice plan, Test strategy, Traceability, Open questions. Boundaries holds three `### ` tiers: Always, Ask first, Never.
 
-**Acceptance criteria.** Each criterion is a list item or heading that starts with its id, `- **AC-n**: Given …, when …, then …`. Each `AC-n` is defined once.
+**Acceptance criteria.** Each criterion is a list item or heading that starts with its id, `- **AC-n**: Given …, when …, then …`. The section defines at least one, and each `AC-n` once.
 
-**Traceability.** A table whose first column is the `AC-n` and second its evidence. Every defined `AC-n` has a row, and every row's `AC-n` is defined. Evidence entries are separated by `;` or `<br>`:
+**Traceability.** A table whose first column is the `AC-n` and second its evidence. Every defined `AC-n` has a row, and every row's `AC-n` is defined. Several entries in one cell are separated by `;` or `<br>` before the next `test:`, `verify:` or `manual:`, so a reason may hold a `;`:
 
 - `test: <path>`: a test file, relative to the repo root, with `/` or `\`.
 - `verify: <path>`: a verify result file or folder, relative to the repo root.
 - `manual: <reason>`: what was checked by hand and why no test or verify journey covers it.
 
-**Open questions.** A list item starting with `BLOCKS:` is an open blocking question. Once answered, the answer goes into the spec and the prefix becomes `RESOLVED:`. At `approved` and `implemented`, no `BLOCKS:` item remains.
+**Open questions.** A list item starting with `BLOCKS:` is an open blocking question. Once answered, the answer goes into the spec and the prefix becomes `RESOLVED:`. At `approved` and `implemented`, no `BLOCKS:` item remains. A `superseded` spec is exempt, since it may have been superseded as a draft.
 
 **Evidence at `implemented`.** Every row has at least one entry, and each entry resolves:
 

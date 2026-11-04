@@ -5,6 +5,8 @@ ticket: "<ticket key or URL; delete this line when there is no ticket>"
 
 # <Title of the change>
 
+<!-- When a later spec replaces this one, set "status: superseded" and add "superseded-by: <slug of the replacing spec>" to the frontmatter. -->
+
 ## Problem and goal
 
 <Who is affected, what goes wrong today, and what is true once this change ships.>
@@ -45,7 +47,7 @@ ticket: "<ticket key or URL; delete this line when there is no ticket>"
 
 ## Traceability
 
-| AC | Evidence |
+| Acceptance criterion | Evidence |
 | --- | --- |
 | AC-1 | test: `<path/to/test-file>` |
 
