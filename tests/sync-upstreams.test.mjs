@@ -4,8 +4,8 @@
 // directory, so nothing touches the network) and a fixture kit whose
 // upstreams.json points at it, installs the copies with
 // `node scripts/sync-upstreams.mjs install <kit>`, and asserts on exit codes,
-// reported findings and output. The rename tests also read the installed
-// copy, since the copy is what `install` outputs.
+// reported findings and output. The rename and relocation tests also read the
+// installed copy, since the copy is what `install` outputs.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -334,6 +334,96 @@ test('report lists the upstream commits that changed a copied skill since the pi
   assert.match(stdout, /fixture: .*1 commit\(s\) since the pin/);
   assert.match(stdout, /alpha \(skills\/group\/alpha\): changed\n\s+[0-9a-f]+ rework alpha/);
   assert.match(stdout, /beta \(skills\/group\/beta\): unchanged/);
+});
+
+// An upstream whose `delta` skill points, from its SKILL.md and from a file
+// in its own references/ folder, to a checklist at the upstream's root, the
+// way Addy Osmani's security-and-hardening points to references/security-checklist.md.
+// It also names a skill the kit does not copy, which is prose, not a path.
+const DELTA =
+  '---\nname: delta\ndescription: Points outside its folder.\n---\n\n' +
+  'Details: [patterns](references/patterns.md). Walk `../../../references/checklist.md` before sign-off.\n' +
+  'Ops agrees (the `observability` skill says so).\n';
+const DELTA_PATTERNS = 'Shared lists live in `../../../../references/checklist.md#lists`.\n';
+const CHECKLIST = 'Use alongside the `delta` skill. Not a path: `rel === \'../\'`.\n';
+
+function upstreamWithShared() {
+  return makeUpstream({
+    ...upstreamFiles(),
+    'references/checklist.md': CHECKLIST,
+    'skills/group/delta/SKILL.md': DELTA,
+    'skills/group/delta/references/patterns.md': DELTA_PATTERNS,
+  });
+}
+
+// A fixture kit that also copies `delta`, relocating the shared checklist.
+function kitWithShared({ shared = ['references/checklist.md'], upstream = upstreamWithShared() } = {}) {
+  return installedKit({
+    upstream,
+    edit: (kit) => {
+      Object.assign(kit, manifests(['aw-alpha', 'aw-beta', 'aw-delta']));
+      kit['upstreams.json'].upstreams.fixture.skills.delta = { path: 'skills/group/delta', shared };
+      kit['NOTICE.md'] = notice(['aw-alpha', 'aw-beta', 'aw-delta'].map((name) => noticeRow(name, upstream)));
+    },
+  });
+}
+
+test('install moves a shared upstream file into the copy and rewrites the paths to it', () => {
+  const { dir } = kitWithShared();
+
+  assert.equal(
+    read(dir, 'skills/aw-delta/SKILL.md'),
+    '---\nname: aw-delta\ndescription: Points outside its folder.\n---\n\n' +
+      'Details: [patterns](references/patterns.md). Walk `references/checklist.md` before sign-off.\n' +
+      'Ops agrees (the `observability` skill says so).\n',
+  );
+  assert.equal(read(dir, 'skills/aw-delta/references/patterns.md'), 'Shared lists live in `checklist.md#lists`.\n');
+  assert.equal(
+    read(dir, 'skills/aw-delta/references/checklist.md'),
+    'Use alongside the `aw-delta` skill. Not a path: `rel === \'../\'`.\n',
+  );
+  assertNoFindings(validate(dir));
+});
+
+test('a copy missing a relocated shared file is reported', () => {
+  const { dir } = kitWithShared();
+  rmSync(join(dir, 'skills/aw-delta/references/checklist.md'));
+
+  assertOneFinding(validate(dir), /^skills\/aw-delta\/references\/checklist\.md: missing; .*relocates the shared upstream file/);
+});
+
+test('a copy whose path to a shared file was not rewritten is reported', () => {
+  const { dir } = kitWithShared();
+  write(
+    dir,
+    'skills/aw-delta/references/patterns.md',
+    read(dir, 'skills/aw-delta/references/patterns.md').replace('`checklist.md', '`../../../../references/checklist.md'),
+  );
+
+  assertOneFinding(sync('check', dir), /^skills\/aw-delta\/references\/patterns\.md: a path rewrite is missing/);
+});
+
+test('a copy pointing to an upstream file it does not relocate is reported', () => {
+  const { dir } = kitWithShared({ shared: [] });
+
+  const { status, findings } = validate(dir);
+  assert.notEqual(status, 0);
+  assert.deepEqual(findings, [
+    'skills/aw-delta/SKILL.md:6: points outside the copy\'s folder: ../../../references/checklist.md; list the file under "shared" in upstreams.json',
+    'skills/aw-delta/references/patterns.md:1: points outside the copy\'s folder: ../../../../references/checklist.md#lists; list the file under "shared" in upstreams.json',
+  ]);
+});
+
+test('report lists the upstream commits that changed a shared file a copy relocates', () => {
+  const upstream = upstreamWithShared();
+  const { dir } = kitWithShared({ upstream });
+  write(upstream.dir, 'references/checklist.md', 'Changed upstream.\n');
+  git(upstream.dir, 'commit', '--quiet', '--all', '-m', 'rework checklist');
+
+  const { status, stdout } = sync('report', dir);
+  assert.equal(status, 0);
+  assert.match(stdout, /delta \(skills\/group\/delta\): unchanged/);
+  assert.match(stdout, /delta shared file \(references\/checklist\.md\): changed\n\s+[0-9a-f]+ rework checklist/);
 });
 
 test('an unknown mode is a usage error', () => {

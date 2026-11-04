@@ -27,6 +27,8 @@
     "./skills/aw-codebase-design",
     "./skills/aw-improve-codebase-architecture",
     "./skills/aw-writing-for-agents",
-    "./skills/aw-handoff"
+    "./skills/aw-handoff",
+    "./skills/aw-source-driven-development",
+    "./skills/aw-security-and-hardening"
   ]
 }
