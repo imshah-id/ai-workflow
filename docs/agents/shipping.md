@@ -13,7 +13,8 @@ Read by the `ship-tickets` skill (samfaina/agent-skills).
 ## PR format
 
 - **Title:** a conventional commit, `<type>: <issue title>` with the title's first letter lowercased, as in `feat: kit skeleton, validation CLI and CI`.
-- **Body:** `Closes #<n>` as the first line, then:
+- **Body:** three sections, then `Closes #<n>` as the last line:
   1. `## Summary`: what changes and why, with a `diff` tree of the added (`+`) and changed (`~`) files, one comment per file.
   2. `## Evidence`: before and after, and the test, validator and command output that shows the change works.
   3. `## Merge Danger`: `**Door:**` one-way or two-way, with what makes it so, and `**Blast Radius:**` what the change can affect outside the PR (none, repo-local, CI, …).
+  4. `Closes #<n>` on a line of its own, ending the body.
