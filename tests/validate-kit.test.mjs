@@ -204,3 +204,133 @@ test('a kit directory that does not exist is a usage error', () => {
 test('this repo is a valid kit', () => {
   assertNoFindings(run(repoRoot));
 });
+
+// Adapter templates are the files under a skill's `adapters/` folder that
+// aw-setup fills in for a repo (ADR 0006). A `tracker`, `vcs` or `checks`
+// template (`<kind>.md` or `<kind>-<variant>.md`) has an `## Operations`
+// table with one row per canonical operation of its kind: the operation, how
+// it is performed, and its access level. A kind with write operations also
+// declares a default access level.
+
+const TRACKER_ROWS = [
+  ['fetch-ticket', 'read'],
+  ['query-tickets', 'read'],
+  ['publish-ticket', 'write'],
+  ['comment-ticket', 'write'],
+  ['set-status', 'write'],
+  ['link-tickets', 'draft'],
+];
+
+function adapterTemplate(title, rows, { defaultAccess = 'write' } = {}) {
+  const lines = [`# ${title}`, ''];
+  if (defaultAccess) lines.push(`**Default access:** \`${defaultAccess}\``, '');
+  lines.push('## Operations', '', '| Operation | How | Access |', '| --- | --- | --- |');
+  for (const [operation, access, how = 'Run the command.'] of rows) {
+    lines.push(`| \`${operation}\` | ${how} | \`${access}\` |`);
+  }
+  return lines.join('\n') + '\n';
+}
+
+// A checks template's `## Levels` table, one command per listed level.
+function levelsTable(levels) {
+  const rows = levels.map((level) => `| \`${level}\` | \`npm run ${level}\` |`);
+  return ['', '## Levels', '', '| Level | Command |', '| --- | --- |', ...rows].join('\n') + '\n';
+}
+
+function kitWithTemplate(path, content) {
+  const kit = validKit();
+  kit[`skills/aw-beta/adapters/${path}`] = content;
+  return kit;
+}
+
+test('a tracker template missing a canonical operation is reported', () => {
+  const rows = TRACKER_ROWS.filter(([operation]) => operation !== 'set-status');
+  const kit = kitWithTemplate('tracker-github.md', adapterTemplate('Tracker: GitHub', rows));
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/tracker-github\.md: .*"set-status"/);
+});
+
+test('a write operation whose access is neither write nor draft is reported', () => {
+  const rows = TRACKER_ROWS.map(([operation, access]) =>
+    operation === 'publish-ticket' ? [operation, 'read'] : [operation, access],
+  );
+  const kit = kitWithTemplate('tracker-github.md', adapterTemplate('Tracker: GitHub', rows));
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/tracker-github\.md: .*"publish-ticket".*`write` or `draft`/);
+});
+
+test('a read operation given a write access level is reported', () => {
+  const rows = TRACKER_ROWS.map(([operation, access]) =>
+    operation === 'fetch-ticket' ? [operation, 'draft'] : [operation, access],
+  );
+  const kit = kitWithTemplate('tracker-github.md', adapterTemplate('Tracker: GitHub', rows));
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/tracker-github\.md: .*"fetch-ticket".*`read`/);
+});
+
+test('an operation row that does not say how it is performed is reported', () => {
+  const rows = TRACKER_ROWS.map(([operation, access]) =>
+    operation === 'comment-ticket' ? [operation, access, ''] : [operation, access],
+  );
+  const kit = kitWithTemplate('tracker-github.md', adapterTemplate('Tracker: GitHub', rows));
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/tracker-github\.md: .*"comment-ticket".*how/);
+});
+
+test('an operation outside the canonical vocabulary is reported', () => {
+  const rows = [...TRACKER_ROWS, ['close-ticket', 'write']];
+  const kit = kitWithTemplate('tracker-github.md', adapterTemplate('Tracker: GitHub', rows));
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/tracker-github\.md: .*"close-ticket".*canonical/);
+});
+
+test('a template with write operations but no default access level is reported', () => {
+  const kit = kitWithTemplate(
+    'tracker-github.md',
+    adapterTemplate('Tracker: GitHub', TRACKER_ROWS, { defaultAccess: null }),
+  );
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/tracker-github\.md: .*Default access/);
+});
+
+test('a template without an Operations table is reported once', () => {
+  const kit = kitWithTemplate('vcs-github.md', '# VCS: GitHub\n\n**Default access:** `write`\n\nPush with git.\n');
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/vcs-github\.md: .*## Operations/);
+});
+
+test('an operation listed twice is reported', () => {
+  const rows = [...TRACKER_ROWS, ['set-status', 'draft']];
+  const kit = kitWithTemplate('tracker-github.md', adapterTemplate('Tracker: GitHub', rows));
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/tracker-github\.md: .*"set-status".*more than once/);
+});
+
+test('complete tracker, vcs and checks templates pass', () => {
+  const kit = kitWithTemplate('tracker-github.md', adapterTemplate('Tracker: GitHub', TRACKER_ROWS));
+  kit['skills/aw-beta/adapters/vcs-none.md'] = adapterTemplate('VCS: git, no review host', [
+    ['start-branch', 'write'],
+    ['commit', 'write'],
+    ['diff-base', 'read'],
+    ['push', 'draft'],
+    ['open-review', 'draft'],
+    ['merge', 'draft'],
+  ]);
+  kit['skills/aw-beta/adapters/checks.md'] = adapterTemplate(
+    'Checks',
+    [['run-check', 'read', 'Run the level\'s command from the Levels table.']],
+    { defaultAccess: null },
+  ) + levelsTable(['fast', 'task', 'full']);
+  kit['skills/aw-beta/adapters/domain.md'] = '# Domain docs\n\nNo operations here.\n';
+
+  assertNoFindings(runOn(kit));
+});
+
+test('a checks template missing a check level is reported', () => {
+  const template =
+    adapterTemplate('Checks', [['run-check', 'read', 'Run the level\'s command.']], { defaultAccess: null }) +
+    levelsTable(['fast', 'full']);
+  const kit = kitWithTemplate('checks.md', template);
+
+  assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/checks\.md: .*"task"/);
+});
