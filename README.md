@@ -6,7 +6,7 @@ Claude Code is the reference harness. Other harnesses (Codex, OpenCode, Cursor a
 
 The vocabulary is in [`GLOSSARY.md`](GLOSSARY.md) and the design decisions in [`docs/adr/`](docs/adr/).
 
-> Status: pre-release. The repo is a valid plugin and skills source. It ships eleven copies of Matt Pocock's skills and two of Addy Osmani's so far, listed in [`NOTICE.md`](NOTICE.md), and the first kit skill, `aw-check-spec`: the spec template and the script that checks specs under `docs/specs/`.
+> Status: pre-release. The repo is a valid plugin and skills source. It ships eleven copies of Matt Pocock's skills and two of Addy Osmani's so far, listed in [`NOTICE.md`](NOTICE.md), and two kit skills: `aw-check-spec`, the spec template and the script that checks specs under `docs/specs/`, and `aw-setup`, which configures a repo for the workflow.
 
 ## Install
 
@@ -63,6 +63,12 @@ claude plugin disable mattpocock-skills@claude-plugins-official --scope project
 
 To turn the kit off in one repo without uninstalling it, set `"ai-workflow@samfaina": false` in that repo's settings.
 
+## Configuring a repo
+
+Run `/aw-setup` once in each repo that uses the workflow. One interview writes four adapters to `docs/agents/` (`tracker.md`, `vcs.md`, `checks.md`, `domain.md`) and an `## Agent skills` block pointing to them in `AGENTS.md`, or in `CLAUDE.md` when only that exists. The adapters translate the kit's canonical operations into the repo's tools and set what the agent may do itself (`write`) and what it only drafts for you in `.aw/drafts/` (`draft`). Setup also adds `.aw/` to `.gitignore`, offers `permissions.deny` entries against force-push and `--no-verify`, warns when Node is missing, and offers to turn Pocock's plugin off in the repo. Re-run it to change anything; it updates in place.
+
+A repo without configuration still works on safe defaults: no tracker, and pushing, opening a review request and merging left as drafts. [`docs/configuration.md`](docs/configuration.md) describes the layer and its defaults.
+
 ## Maintaining the kit
 
 The scripts are dependency-free Node 18+ ESM, always run as `node <path>` (ADR 0008).
@@ -78,6 +84,7 @@ claude plugin validate . --strict    # plugin and marketplace manifests
 - every skill folder under `skills/` carries the `aw-` prefix and its `name:` matches the folder;
 - every skill is listed in `.claude-plugin/plugin.json`, and every listed skill exists;
 - user-invoked skills carry both `disable-model-invocation: true` and an `agents/openai.yaml` with `policy: allow_implicit_invocation: false`. A skill that declares either flag counts as user-invoked, so a skill meant to be user-invoked that declares neither is not caught;
+- every adapter template (`tracker*.md`, `vcs*.md`, `checks*.md` in a skill's `adapters/` folder) has an `## Operations` table with one row per canonical operation of its kind, each saying how it is performed, with `read` for read operations and `write` or `draft` for write operations, and no operation outside the vocabulary; tracker and VCS templates declare a `**Default access:**`, and checks templates give a command for `fast`, `task` and `full` in a `## Levels` table;
 - the version in `plugin.json` is plain semver `X.Y.Z` and matches the marketplace entry;
 - every copy passes the sync `check` (below), which also requires its `LICENSE.upstream`;
 - every copy has a `NOTICE.md` entry that links its upstream `repo` and shows its pin and the kind `copy`;

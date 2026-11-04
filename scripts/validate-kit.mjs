@@ -239,8 +239,114 @@ function checkNotice(dir) {
   return findings;
 }
 
+// The closed vocabulary of canonical operations (ADR 0006), by adapter kind.
+// Read operations are always allowed; each write operation is at `write` or
+// `draft`.
+const OPERATIONS = {
+  tracker: {
+    read: ['fetch-ticket', 'query-tickets'],
+    write: ['publish-ticket', 'comment-ticket', 'set-status', 'link-tickets'],
+  },
+  vcs: {
+    read: ['diff-base'],
+    write: ['start-branch', 'commit', 'push', 'open-review', 'merge'],
+  },
+  checks: {
+    read: ['run-check'],
+    write: [],
+  },
+};
+
+// The check levels a checks template gives a command for.
+const CHECK_LEVELS = ['fast', 'task', 'full'];
+
+// Rows of the first table under the `## <heading>` heading, as trimmed cells,
+// header and separator rows dropped; null when there is no such heading.
+function tableRows(text, heading) {
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((line) => new RegExp(`^##\\s+${heading}\\s*$`).test(line));
+  if (start === -1) return null;
+  const rows = [];
+  let inTable = false;
+  for (const line of lines.slice(start + 1)) {
+    if (line.trim().startsWith('|')) {
+      inTable = true;
+      rows.push(line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map((cell) => cell.trim()));
+    } else if (inTable || /^#{1,2}\s/.test(line)) {
+      break;
+    }
+  }
+  return rows.slice(2);
+}
+
+// A checks template gives the command behind each check level in a
+// `## Levels` table.
+function checkLevels(at, text) {
+  const rows = tableRows(text, 'Levels') ?? [];
+  const levels = new Set(rows.filter((cells) => cells[1]).map((cells) => cells[0].replace(/`/g, '')));
+  return CHECK_LEVELS.filter((level) => !levels.has(level)).map(
+    (level) => `${at}: no command for check level "${level}" in the Levels table`,
+  );
+}
+
+// Adapter templates live in a skill's `adapters/` folder (ADR 0006). Each one
+// whose name starts with an adapter kind states, for every canonical
+// operation of that kind, how it is performed and its access level.
+function checkAdapterTemplates(dir) {
+  const findings = [];
+  for (const folder of skillFolders(dir)) {
+    const adaptersDir = join(dir, 'skills', folder, 'adapters');
+    if (!existsSync(adaptersDir)) continue;
+    for (const file of readdirSync(adaptersDir).sort()) {
+      const kind = Object.keys(OPERATIONS).find(
+        (name) => file === `${name}.md` || (file.startsWith(`${name}-`) && file.endsWith('.md')),
+      );
+      if (!kind) continue;
+      const at = `skills/${folder}/adapters/${file}`;
+      const text = readFileSync(join(adaptersDir, file), 'utf8');
+      if (kind === 'checks') findings.push(...checkLevels(at, text));
+      const rows = tableRows(text, 'Operations');
+      const { read, write } = OPERATIONS[kind];
+      if (rows === null || rows.length === 0) {
+        findings.push(`${at}: has no "## Operations" table stating how each canonical ${kind} operation is performed`);
+        continue;
+      }
+      if (write.length > 0 && !/^\*\*Default access:\*\*\s*`(write|draft)`/m.test(text)) {
+        findings.push(`${at}: must declare "**Default access:** \`write\`" or "\`draft\`" for its write operations`);
+      }
+      const byOperation = new Map();
+      for (const cells of rows) {
+        const operation = cells[0].replace(/`/g, '');
+        if (byOperation.has(operation)) {
+          findings.push(`${at}: "${operation}" is listed more than once in the Operations table`);
+        } else if (!read.includes(operation) && !write.includes(operation)) {
+          findings.push(`${at}: "${operation}" is not a canonical ${kind} operation (ADR 0006)`);
+        }
+        if (!byOperation.has(operation)) byOperation.set(operation, cells);
+      }
+      for (const operation of [...read, ...write]) {
+        const cells = byOperation.get(operation);
+        if (!cells) {
+          findings.push(`${at}: no row for canonical operation "${operation}" in the Operations table`);
+          continue;
+        }
+        const access = (cells[2] ?? '').replace(/`/g, '');
+        if (!cells[1]) {
+          findings.push(`${at}: "${operation}" does not say how it is performed`);
+        } else if (write.includes(operation) && access !== 'write' && access !== 'draft') {
+          findings.push(`${at}: "${operation}" is a write operation, so its access must be \`write\` or \`draft\`, not "${access}"`);
+        } else if (read.includes(operation) && access !== 'read') {
+          findings.push(`${at}: "${operation}" is always allowed, so its access must be \`read\`, not "${access}"`);
+        }
+      }
+    }
+  }
+  return findings;
+}
+
 function validate(dir) {
   const findings = checkSkills(dir);
+  findings.push(...checkAdapterTemplates(dir));
   const plugin = readJson(dir, PLUGIN_MANIFEST);
   const marketplace = readJson(dir, MARKETPLACE_MANIFEST);
   if (plugin.finding) findings.push(plugin.finding);
