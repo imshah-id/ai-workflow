@@ -4,8 +4,8 @@
 // directory, so nothing touches the network) and a fixture kit whose
 // upstreams.json points at it, installs the copies with
 // `node scripts/sync-upstreams.mjs install <kit>`, and asserts on exit codes,
-// reported findings and output. The rename tests also read the installed
-// copy, since the copy is what `install` outputs.
+// reported findings and output. The rename and relocation tests also read the
+// installed copy, since the copy is what `install` outputs.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -409,9 +409,21 @@ test('a copy pointing to an upstream file it does not relocate is reported', () 
   const { status, findings } = validate(dir);
   assert.notEqual(status, 0);
   assert.deepEqual(findings, [
-    'skills/aw-delta/SKILL.md: line 6 points outside the copy\'s folder: ../../../references/checklist.md; list the file under "shared" in upstreams.json',
-    'skills/aw-delta/references/patterns.md: line 1 points outside the copy\'s folder: ../../../../references/checklist.md#lists; list the file under "shared" in upstreams.json',
+    'skills/aw-delta/SKILL.md:6: points outside the copy\'s folder: ../../../references/checklist.md; list the file under "shared" in upstreams.json',
+    'skills/aw-delta/references/patterns.md:1: points outside the copy\'s folder: ../../../../references/checklist.md#lists; list the file under "shared" in upstreams.json',
   ]);
+});
+
+test('report lists the upstream commits that changed a shared file a copy relocates', () => {
+  const upstream = upstreamWithShared();
+  const { dir } = kitWithShared({ upstream });
+  write(upstream.dir, 'references/checklist.md', 'Changed upstream.\n');
+  git(upstream.dir, 'commit', '--quiet', '--all', '-m', 'rework checklist');
+
+  const { status, stdout } = sync('report', dir);
+  assert.equal(status, 0);
+  assert.match(stdout, /delta \(skills\/group\/delta\): unchanged/);
+  assert.match(stdout, /delta shared file \(references\/checklist\.md\): changed\n\s+[0-9a-f]+ rework checklist/);
 });
 
 test('an unknown mode is a usage error', () => {

@@ -228,20 +228,20 @@ function swapPaths(text, pairs) {
 }
 
 // The path rewrite for one file of a copy, given its path inside the copy.
-// `upstream` maps each upstream path to a shared file to its copy path,
-// `copy` maps back.
+// `toCopy` maps each path to a shared file as upstream writes it to the path
+// the copy uses, `toUpstream` maps back.
 function pathPairsFor(copy, file) {
   const upstreamFile = copy.shared.includes(file) ? file : `${copy.path}/${file}`;
-  const upstream = {};
-  const back = {};
+  const toCopy = {};
+  const toUpstream = {};
   for (const shared of copy.shared) {
     const from = relativePath(upstreamFile, shared);
     const to = relativePath(file, shared);
     if (from === to) continue;
-    upstream[from] = to;
-    back[to] = from;
+    toCopy[from] = to;
+    toUpstream[to] = from;
   }
-  return { upstream, copy: back };
+  return { toCopy, toUpstream };
 }
 
 // The mechanical transform for one copy, given the names of every copied
@@ -251,9 +251,9 @@ function pathPairsFor(copy, file) {
 function transformFor(copy, names) {
   const renamer = renamerFor(copy, names);
   return {
-    apply: (text, file) => renamer.apply(swapPaths(text, pathPairsFor(copy, file).upstream), file),
-    undo: (text, file) => swapPaths(renamer.undo(text, file), pathPairsFor(copy, file).copy),
-    missingRewrite: (text, file) => swapPaths(text, pathPairsFor(copy, file).upstream) !== text,
+    apply: (text, file) => renamer.apply(swapPaths(text, pathPairsFor(copy, file).toCopy), file),
+    undo: (text, file) => swapPaths(renamer.undo(text, file), pathPairsFor(copy, file).toUpstream),
+    missingRewrite: (text, file) => swapPaths(text, pathPairsFor(copy, file).toCopy) !== text,
   };
 }
 
@@ -346,7 +346,10 @@ function checkFile(at, bytes, expectedBlob, file, transform) {
 
 // A relative path that climbs out of the copy's folder: one or more `../`
 // then a file name with an extension, optionally followed by an `#anchor`.
-// A bare `../`, as in code that tests for it, is not a path to a file.
+// A bare `../`, as in code that tests for it, is not a path to a file. This
+// is a heuristic: a path to a folder, or to a file without an extension, is
+// not caught, so that example strings such as `../../etc/passwd` in a
+// security skill are not taken for paths the copy depends on.
 const CLIMBING_PATH = /(?<![\w./-])((?:\.\.\/)+(?:[\w.-]+\/)*[\w-][\w.-]*\.\w+)(#[\w-]*)?/g;
 
 // One finding per path in a copied file that resolves outside the copy's
@@ -358,11 +361,15 @@ function outsidePaths(at, bytes, file) {
   text.split('\n').forEach((line, index) => {
     for (const [match, path] of line.matchAll(CLIMBING_PATH)) {
       if (!posix.normalize(posix.join(posix.dirname(file), path)).startsWith('../')) continue;
-      findings.push(`${at}: line ${index + 1} points outside the copy's folder: ${match}; list the file under "shared" in ${MANIFEST}`);
+      findings.push(`${at}:${index + 1}: points outside the copy's folder: ${match}; list the file under "shared" in ${MANIFEST}`);
     }
   });
   return findings;
 }
+
+// True when a shared file would land on a file the copy already has: one of
+// the skill's own files, given as an object keyed by path, or LICENSE.upstream.
+const clashesWithSkill = (file, skillFiles) => file in skillFiles || file === LICENSE_FILE;
 
 const isLockedFile = (entry) => isObject(entry) && typeof entry.mode === 'string' && typeof entry.blob === 'string';
 
@@ -374,7 +381,7 @@ function locksShared(lockedSkill, copy) {
   const files = Object.keys(shared).sort();
   return (
     files.length === copy.shared.length &&
-    files.every((file, index) => file === copy.shared[index] && !(file in lockedSkill.files) && file !== LICENSE_FILE)
+    files.every((file, index) => file === copy.shared[index] && !clashesWithSkill(file, lockedSkill.files))
   );
 }
 
@@ -516,31 +523,38 @@ function withUpstream(dir, upstream, fn) {
   }
 }
 
-// Every file under `path` at `commit`, as { file, mode, blob } with `file`
-// relative to `path`.
-function treeFiles(gitDir, commit, path) {
-  return git(gitDir, ['ls-tree', '-r', '-z', '--full-tree', commit, '--', `${path}/`])
+// The regular files `git ls-tree` lists at `commit` for `pathspec`, as
+// { path, mode, blob } with `path` from the repo's root. Throws on anything
+// else, such as a symlink or a submodule: copies hold only regular files.
+function regularFiles(gitDir, commit, pathspec, { recursive }) {
+  return git(gitDir, ['ls-tree', ...(recursive ? ['-r'] : []), '-z', '--full-tree', commit, '--', pathspec])
     .split('\0')
     .filter(Boolean)
     .map((line) => {
-      const [meta, fullPath] = line.split('\t');
+      const [meta, path] = line.split('\t');
       const [mode, type, blob] = meta.split(' ');
       if (type !== 'blob' || (mode !== '100644' && mode !== '100755')) {
-        throw new SyncError(`${fullPath} at ${commit} is not a regular file (mode ${mode}); copies hold only regular files`);
+        throw new SyncError(`${path} at ${commit} is not a regular file (mode ${mode}); copies hold only regular files`);
       }
-      return { file: fullPath.slice(path.length + 1), mode, blob };
+      return { path, mode, blob };
     });
 }
 
-// The mode and blob of the regular file at `commit:path`; throws when there
-// is none.
+// Every file under `path` at `commit`, as { file, mode, blob } with `file`
+// relative to `path`.
+function treeFiles(gitDir, commit, path) {
+  return regularFiles(gitDir, commit, `${path}/`, { recursive: true }).map(({ path: fullPath, mode, blob }) => ({
+    file: fullPath.slice(path.length + 1),
+    mode,
+    blob,
+  }));
+}
+
+// The mode and blob of the regular file at `commit:path`.
 function fileAt(gitDir, commit, path) {
-  const [meta] = git(gitDir, ['ls-tree', '-z', '--full-tree', commit, '--', path]).split('	');
-  const [mode, type, blob] = meta.split(' ');
-  if (type !== 'blob' || (mode !== '100644' && mode !== '100755')) {
-    throw new SyncError(`${path} at ${commit} is not a regular file; a shared file must be one`);
-  }
-  return { mode, blob };
+  const [entry] = regularFiles(gitDir, commit, path, { recursive: false });
+  if (entry?.path !== path) throw new SyncError(`there is no file ${path} at ${commit}`);
+  return { mode: entry.mode, blob: entry.blob };
 }
 
 const readBlob = (gitDir, blob) => git(gitDir, ['cat-file', 'blob', blob], { encoding: 'buffer' });
@@ -607,7 +621,7 @@ export function install(dir) {
         }
         const shared = {};
         for (const file of copy.shared) {
-          if (file in files || file === LICENSE_FILE) {
+          if (clashesWithSkill(file, files)) {
             throw new SyncError(`${at}/${file}: shared file ${file} would replace a file the skill already has`);
           }
           shared[file] = fileAt(gitDir, upstream.commit, file);
@@ -654,7 +668,10 @@ export function report(dir) {
       const count = git(gitDir, ['rev-list', '--count', `${upstream.commit}..${head}`]).trim();
       lines.push(`${upstream.key}: pinned at ${upstream.commit.slice(0, 12)}, upstream is at ${head.slice(0, 12)}, ${count} commit(s) since the pin`);
       const paths = [
-        ...upstream.skills.map((copy) => ({ label: `${copy.name} (${copy.path})`, path: copy.path })),
+        ...upstream.skills.flatMap((copy) => [
+          { label: `${copy.name} (${copy.path})`, path: copy.path },
+          ...copy.shared.map((file) => ({ label: `${copy.name} shared file (${file})`, path: file })),
+        ]),
         { label: `license (${upstream.license})`, path: upstream.license },
       ];
       for (const { label, path } of paths) {
