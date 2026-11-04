@@ -21,6 +21,190 @@
               "blob": "ddbdb96139c0c1dfe6bca698f39d0465674b8a39"
             }
           }
+        },
+        "grill-with-docs": {
+          "path": "skills/engineering/grill-with-docs",
+          "tree": "eedaf2562c83155115e9c649fa3ecaac2e10e81d",
+          "files": {
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "62b9efb6f991d1b229adee7506962f13ced0c499"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "5dbe2780a51be3e9b118bd7758a73e54a9384e11"
+            }
+          }
+        },
+        "domain-modeling": {
+          "path": "skills/engineering/domain-modeling",
+          "tree": "ea30ee454ba264543dbe40737973b1a5afb9f0e6",
+          "files": {
+            "ADR-FORMAT.md": {
+              "mode": "100644",
+              "blob": "d7e61f30a9fd8ca70d9ee68f019c2a9ebf2d13f7"
+            },
+            "GLOSSARY-FORMAT.md": {
+              "mode": "100644",
+              "blob": "9c0b4c7a2e8507c23cbb5e0baa66d81699321cc6"
+            },
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "a4438c6879c517d1a08e2b5fbca049b632688dfe"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "7f1522d2f11506ee205275ab7c282aa52366ecf6"
+            }
+          }
+        },
+        "research": {
+          "path": "skills/engineering/research",
+          "tree": "2f8f36af48796faed5c687c75bb650071631a984",
+          "files": {
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "ffc9eb89849cc4cf74962ce93d786ffd17c6a5dc"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "e18b96ca0ccc1003889d5d6991386207c2454bc2"
+            }
+          }
+        },
+        "prototype": {
+          "path": "skills/engineering/prototype",
+          "tree": "e41d92e171f074a2b6887d8f6faca4a15c83d1ca",
+          "files": {
+            "LOGIC.md": {
+              "mode": "100644",
+              "blob": "32be86a0a5d9928db84b3988e55f9debe476ab40"
+            },
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "a0044501fe0d385b4d8575b610188ede9b236ccf"
+            },
+            "UI.md": {
+              "mode": "100644",
+              "blob": "3977951663490882c2632b40695d9f59a2fe2408"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "1618b147965bc729b7bf3e8da5f130132067aadc"
+            }
+          }
+        },
+        "tdd": {
+          "path": "skills/engineering/tdd",
+          "tree": "667dbdd00c09d0e2189e082986e6a4d61a67c2a6",
+          "files": {
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "01eadaa34e7c9a63a67d6dc3cce1cc81b0e49985"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "651b838a7663e027b1b8884491e867f26bb9a021"
+            },
+            "mocking.md": {
+              "mode": "100644",
+              "blob": "71cbfee674d93244ce81d1830b930ca9a69200bd"
+            },
+            "tests.md": {
+              "mode": "100644",
+              "blob": "7ab86479f925a1f9e8ba680af33cb3b12e015381"
+            }
+          }
+        },
+        "diagnosing-bugs": {
+          "path": "skills/engineering/diagnosing-bugs",
+          "tree": "5fdd6cc53385395441910b026c72d71768e993d4",
+          "files": {
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "d039541ddd1c46e6ddbd662fe99d49b686fc5e12"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "a13a755a77634ce61a649a3a0d905a66d3865b35"
+            },
+            "scripts/hitl-loop.template.sh": {
+              "mode": "100644",
+              "blob": "243198464a8401a7ba1d63b3708fa43c3d067665"
+            }
+          }
+        },
+        "codebase-design": {
+          "path": "skills/engineering/codebase-design",
+          "tree": "4cbe1c131e1ea54109cb1e4e5f3c505810db6606",
+          "files": {
+            "DEEPENING.md": {
+              "mode": "100644",
+              "blob": "cd94075cfd754d147555c5d747a16431ed4c7dd8"
+            },
+            "DESIGN-IT-TWICE.md": {
+              "mode": "100644",
+              "blob": "aebdc9f8c05b40d7832de38e2fd8380e1e5507ac"
+            },
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "3f63c8146dd2604b419c929e9876b90c30d410e9"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "3180715edb37f6e96bec42f92f00169faa8886ef"
+            }
+          }
+        },
+        "improve-codebase-architecture": {
+          "path": "skills/engineering/improve-codebase-architecture",
+          "tree": "587147dd230da299cc5e84971cb0a33f6676f8a6",
+          "files": {
+            "HTML-REPORT.md": {
+              "mode": "100644",
+              "blob": "e39e8255b8797cf8257d014fb6658fb533f3a399"
+            },
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "f1eabb568464f03ae79a3346fc1918fdde6d8285"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "706fdca096da5937fe57875a9154017d50668c42"
+            }
+          }
+        },
+        "writing-for-agents": {
+          "path": "skills/productivity/writing-for-agents",
+          "tree": "ad2925850efb8973a72d2e666f7a975f9a2d4a9b",
+          "files": {
+            "SKILL-MECHANICS.md": {
+              "mode": "100644",
+              "blob": "9cdbdb22aadc438755392216e75ad9a14cc9832e"
+            },
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "a37608daf6e835e767deecfb498facecaaba82ba"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "079c933b75743dec18b5d0c01006def20b6aad26"
+            }
+          }
+        },
+        "handoff": {
+          "path": "skills/productivity/handoff",
+          "tree": "ce24892bd2d4b9e7fd5ac9b95c03175e18bef388",
+          "files": {
+            "SKILL.md": {
+              "mode": "100644",
+              "blob": "a224edc643a20ddb989f9bca1547440169159810"
+            },
+            "agents/openai.yaml": {
+              "mode": "100644",
+              "blob": "6e1d8da121beceddc2f9ec7fa8714c1d914dd11a"
+            }
+          }
         }
       }
     }
