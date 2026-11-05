@@ -375,3 +375,30 @@ test('a draft as aw-spec writes it, before slices and tests exist, passes', () =
 
   assertNoFindings(runOn({ [SPEC]: specText({ frontmatter: 'status: draft\n', parts }) }));
 });
+
+// The approved spec aw-slices leaves: slices riskiest first, each naming the
+// criteria it covers, AFK or HITL, its blocking edges and its mirror ticket;
+// an expand–contract sequence; the agreed seams in Test strategy; and
+// planned evidence whose files do not exist yet.
+test('an approved spec with the slice plan and Test strategy aw-slices writes passes', () => {
+  const parts = sections();
+  parts['Slice plan'] =
+    '1. Lockout rule (AC-3). HITL.\n' +
+    '   - Delivers: a locked account is refused and offered support, end to end.\n' +
+    '   - Blocked by: none.\n' +
+    '   - Mirror: #13\n' +
+    '2. Expand: session token beside the cookie (AC-1). AFK.\n' +
+    '   - Delivers: a registered user signs in and reaches the dashboard.\n' +
+    '   - Blocked by: 1.\n' +
+    '   - Mirror: #14\n' +
+    '3. Contract: drop the cookie (AC-1, AC-2). AFK.\n' +
+    '   - Delivers: a wrong password shows an error; no caller reads the cookie.\n' +
+    '   - Blocked by: 2.\n' +
+    '   - Mirror: #15\n';
+  parts['Test strategy'] =
+    'Agreed with the user:\n\n' +
+    '- **The HTTP endpoint** (`POST /session`): catches AC-1 and AC-2; misses the rendered page.\n' +
+    '- AC-3 is proven by `manual:` evidence: the support flow needs a staff account.\n';
+
+  assertNoFindings(runOn({ [SPEC]: specText({ frontmatter: 'status: approved\nticket: "#12"\n', parts }) }));
+});

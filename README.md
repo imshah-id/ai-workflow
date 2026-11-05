@@ -6,7 +6,7 @@ Claude Code is the reference harness. Other harnesses (Codex, OpenCode, Cursor a
 
 The vocabulary is in [`GLOSSARY.md`](GLOSSARY.md) and the design decisions in [`docs/adr/`](docs/adr/).
 
-> Status: pre-release. The repo is a valid plugin and skills source. It ships eleven copies of Matt Pocock's skills and two of Addy Osmani's so far, listed in [`NOTICE.md`](NOTICE.md), and four kit skills: `aw-check-spec`, the spec template and the script that checks specs under `docs/specs/`; `aw-setup`, which configures a repo for the workflow; `aw-intake`, which classifies a task's type and route and runs its pre-step; and `aw-spec`, which writes the spec and holds it at `draft` until you approve it.
+> Status: pre-release. The repo is a valid plugin and skills source. It ships eleven copies of Matt Pocock's skills and two of Addy Osmani's so far, listed in [`NOTICE.md`](NOTICE.md), and five kit skills: `aw-check-spec`, the spec template and the script that checks specs under `docs/specs/`; `aw-setup`, which configures a repo for the workflow; `aw-intake`, which classifies a task's type and route and runs its pre-step; `aw-spec`, which writes the spec and holds it at `draft` until you approve it; and `aw-slices`, which plans an approved spec as slices, agrees the test seams with you, and mirrors the slices as tickets where the tracker allows.
 
 ## Install
 
