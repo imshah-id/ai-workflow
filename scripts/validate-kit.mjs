@@ -181,9 +181,9 @@ function checkVersions(plugin, marketplace) {
   return findings;
 }
 
-// Files to check for line endings, relative and `/`-separated. Inside a git
-// work tree that is what git tracks or would track, so ignored local files
-// (handoffs, local settings) are skipped; elsewhere, every file.
+// The kit's files, relative and `/`-separated. Inside a git work tree that is
+// what git tracks or would track, so ignored local files (handoffs, local
+// settings) are skipped; elsewhere, every file.
 function kitFiles(dir) {
   const git = spawnSync(
     'git',
@@ -270,16 +270,26 @@ const OPERATIONS = {
 // The check levels a checks template gives a command for.
 const CHECK_LEVELS = ['fast', 'task', 'full'];
 
+// The index of the `## <heading>` line in `lines`, or -1.
+function headingIndex(lines, heading) {
+  return lines.findIndex((line) => new RegExp(`^##\\s+${heading}\\s*$`).test(line));
+}
+
+// True for a heading line of level 1 or 2, which ends a `##` section.
+function endsSection(line) {
+  return /^#{1,2}\s/.test(line);
+}
+
 // Rows of the first table under the `## <heading>` heading, as trimmed cells,
 // header and separator rows dropped; null when there is no such heading.
 function tableRows(text, heading) {
   const lines = text.split(/\r?\n/);
-  const start = lines.findIndex((line) => new RegExp(`^##\\s+${heading}\\s*$`).test(line));
+  const start = headingIndex(lines, heading);
   if (start === -1) return null;
   const rows = [];
   for (const line of lines.slice(start + 1)) {
     if (line.trim().startsWith('|')) rows.push(tableCells(line));
-    else if (rows.length > 0 || /^#{1,2}\s/.test(line)) break;
+    else if (rows.length > 0 || endsSection(line)) break;
   }
   return rows.slice(2);
 }
@@ -371,37 +381,41 @@ function checkAdapterTemplates(dir) {
 // or 2; null when there is no such heading.
 function sectionBody(text, heading) {
   const lines = text.split(/\r?\n/);
-  const start = lines.findIndex((line) => new RegExp(`^##\\s+${heading}\\s*$`).test(line));
+  const start = headingIndex(lines, heading);
   if (start === -1) return null;
-  const end = lines.findIndex((line, index) => index > start && /^#{1,2}\s/.test(line));
+  const end = lines.findIndex((line, index) => index > start && endsSection(line));
   return lines.slice(start + 1, end === -1 ? undefined : end).join('\n');
 }
 
-const collapseWhitespace = (body) => body.replace(/\s+/g, ' ').trim();
+// Text with every run of whitespace, line breaks included, made one space.
+function collapseWhitespace(text) {
+  return text.replace(/\s+/g, ' ').trim();
+}
 
 const CONFIGURATION_PAGE = 'docs/configuration.md';
-const NEVER_ALLOWED = 'Never allowed';
+const NEVER_ALLOWED_HEADING = 'Never allowed';
 
 // The configuration page states the never-allowed operations in full. A skill
 // installed through `npx skills` cannot read it, so a file under `skills/`
-// may carry its own `## Never allowed` copy, which must match it.
+// may restate them in its own `## Never allowed` section, which must match.
 function checkNeverAllowed(dir) {
-  const copies = kitFiles(dir)
+  const restatements = kitFiles(dir)
     .filter((path) => path.startsWith('skills/') && path.endsWith('.md'))
     .sort()
-    .map((path) => ({ path, body: sectionBody(readFileSync(join(dir, path), 'utf8'), NEVER_ALLOWED) }))
+    .map((path) => ({ path, body: sectionBody(readFileSync(join(dir, path), 'utf8'), NEVER_ALLOWED_HEADING) }))
     .filter(({ body }) => body !== null);
-  if (copies.length === 0) return [];
+  if (restatements.length === 0) return [];
   const page = join(dir, CONFIGURATION_PAGE);
-  const source = existsSync(page) ? sectionBody(readFileSync(page, 'utf8'), NEVER_ALLOWED) : null;
+  const pageExists = existsSync(page);
+  const source = pageExists ? sectionBody(readFileSync(page, 'utf8'), NEVER_ALLOWED_HEADING) : null;
   if (source === null) {
-    const paths = copies.map(({ path }) => path).join(', ');
-    const problem = existsSync(page) ? `has no "## ${NEVER_ALLOWED}" section` : 'file is missing';
-    return [`${CONFIGURATION_PAGE}: ${problem}; it is the source for the "${NEVER_ALLOWED}" section in ${paths}`];
+    const paths = restatements.map(({ path }) => path).join(', ');
+    const problem = pageExists ? `has no "## ${NEVER_ALLOWED_HEADING}" section` : 'file is missing';
+    return [`${CONFIGURATION_PAGE}: ${problem}; it is the source for the "${NEVER_ALLOWED_HEADING}" section in ${paths}`];
   }
-  return copies
+  return restatements
     .filter(({ body }) => collapseWhitespace(body) !== collapseWhitespace(source))
-    .map(({ path }) => `${path}: "${NEVER_ALLOWED}" section differs from ${CONFIGURATION_PAGE}`);
+    .map(({ path }) => `${path}: "${NEVER_ALLOWED_HEADING}" section differs from ${CONFIGURATION_PAGE}`);
 }
 
 function validate(dir) {
