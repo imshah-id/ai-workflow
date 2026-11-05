@@ -167,3 +167,19 @@ _Avoid_: smoke test, sanity check
 **Verify result**:
 What one verify journey found: passed, failed or inconclusive. `aw-verify` writes it to a file under the spec's `verify/` folder and names it, with the result, in Traceability.
 _Avoid_: test result, verification status
+
+**Review report**:
+What `aw-review` produces: the findings of its Spec, Standards and Security axes side by side, each axis reviewed by its own subagent. It stays local and is never posted to the review host.
+_Avoid_: code review, PR review, review comments
+
+**Defect**:
+A review finding that a run made during the review demonstrates, named with the command and its output. A finding no run demonstrates is a risk.
+_Avoid_: bug, issue, blocker
+
+**Risk**:
+A review finding no run demonstrates, stated with its likelihood and its cost if it happens. Every code smell is a risk.
+_Avoid_: concern, warning, nit
+
+**Pre-existing finding**:
+A defect the same run also shows at the merge-base, or a risk that rests on lines the change did not touch. The review reports it apart, since the change is not responsible for it.
+_Avoid_: legacy issue, existing bug
