@@ -90,8 +90,12 @@ _Avoid_: PRD, plan, design doc, ticket
 A numbered, verifiable statement in a spec, written `AC-n`.
 _Avoid_: requirement, user story, AC (alone, without a number)
 
+**Done-when criterion**:
+One of the 1 to 3 observable statements `aw-intake` gives a fast-route task in place of a spec. Every phase on the fast route takes them as the definition of done, and `aw-build` writes them into its commit message as `Done when:` lines.
+_Avoid_: acceptance criterion (on the fast route), exit criterion
+
 **Evidence**:
-The proof attached to an acceptance criterion: a test, a verify journey, or a manual check with its reason.
+The proof attached to an acceptance criterion, or on the fast route to a done-when criterion: a test, a verify journey, or a manual check with its reason.
 _Avoid_: proof, coverage, validation
 
 **Traceability**:
@@ -123,7 +127,7 @@ The checkbox that opens each slice in the slice plan: `[ ]` until `aw-build` bui
 _Avoid_: status line, done flag
 
 **Test exception**:
-The record, in a slice, that `aw-build` proves one of its criteria by verify or manual evidence instead of a test, because a test at the agreed seam would cost far more than it is worth. It carries its reason.
+The record, in a slice, that `aw-build` proves one of its criteria by verify or manual evidence instead of a test, because a test at the agreed seam would cost far more than it is worth. It carries its reason. On the fast route, which has no slices, it is a line of the commit message.
 _Avoid_: skipped test, test waiver
 
 **Mirror ticket**:
@@ -169,7 +173,7 @@ The shortest run through a verify skill that proves the skill itself works: star
 _Avoid_: smoke test, sanity check
 
 **Verify result**:
-What one verify journey found: passed, failed or inconclusive. `aw-verify` writes it to a file under the spec's `verify/` folder and names it, with the result, in Traceability.
+What one verify journey found: passed, failed or inconclusive. `aw-verify` writes it to a file under the spec's `verify/` folder and names it, with the result, in Traceability. On the fast route, which has no spec, the file stays local under `.aw/verify/`.
 _Avoid_: test result, verification status
 
 **Review report**:

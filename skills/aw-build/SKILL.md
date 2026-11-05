@@ -1,12 +1,12 @@
 ---
 name: aw-build
-description: "Build one slice of an approved spec per call: on a work branch, test-first with aw-tdd at the agreed seams, then run the task checks, tick the slice, update Traceability and commit locally. Stops with a proposed spec change when the spec is wrong. Run after /aw-slices, once per slice."
+description: "Build one slice of an approved spec per call: on a work branch, test-first with aw-tdd at the agreed seams, then run the task checks, tick the slice, update Traceability and commit locally. Stops with a proposed spec change when the spec is wrong. On the fast route, builds the whole task from intake's done-when criteria with no spec. Run after /aw-slices, once per slice, or after /aw-intake on the fast route."
 disable-model-invocation: true
 ---
 
 # Build
 
-Build **one slice** of an approved spec per call, on a work branch: test-first at the seams the spec's Test strategy agrees, then run the `task` check level, tick the slice, update Traceability and make one local commit. The commits and the spec's Traceability are this phase's artifact. Building never starts a review: review is a phase of its own.
+Build **one slice** of an approved spec per call, on a work branch: test-first at the seams the spec's Test strategy agrees, then run the `task` check level, tick the slice, update Traceability and make one local commit. The commits and the spec's Traceability are this phase's artifact. Building never starts a review: review is a phase of its own. On the fast route there is no spec, and one call builds the whole task from intake's done-when criteria, as **The fast route** says.
 
 This skill edits only three things in the spec: done markers (the slice's own, and the unset markers a plan without any needs, as **The done marker** says), a **test exception** in the slice it builds, and the Traceability rows of the criteria that slice covers. Anything else the spec needs is a **spec change**: stop, as **When the spec is wrong** says.
 
@@ -48,9 +48,9 @@ A slice is **done** when its marker is `[x]`. `/aw-slices` writes every slice wi
 
 ### 1. Take the spec and the slice
 
-Take the spec the user names, or the one `/aw-slices` planned in this conversation. When neither is clear, list the specs under `docs/specs/` with their `status` and ask which one.
+On the fast route there is no spec: follow **The fast route** below instead of this step, and read the later steps with the changes it lists.
 
-ADR 0013 also sends the fast route through this skill, building from intake's "done when" criteria with no spec. That path is not written yet: on a fast-route task, say so and stop.
+Take the spec the user names, or the one `/aw-slices` planned in this conversation. When neither is clear, list the specs under `docs/specs/` with their `status` and ask which one.
 
 Read the spec's frontmatter. **Refuse to go on unless `status` is `approved`**, and say why:
 
@@ -166,3 +166,39 @@ When building shows that the spec is wrong (a criterion cannot be built as state
 3. Propose the spec change: the section and the text as it stands, the text you propose, and the evidence that the spec is wrong, such as a failing test's output or the code that contradicts it.
 
 Tell the user to make the change with `/aw-spec`, then to run `/aw-slices` when the change alters the slice plan, and `/aw-build` again after that. Done when the user has the proposed change and no commit was made.
+
+## The fast route
+
+On the fast route (ADR 0013) there is no spec and no slice plan. `/aw-intake` stated 1 to 3 **done-when criteria**, and they are the definition of done: this call builds the whole task until each one holds, and never creates a spec. The phase's artifact is then the commits alone, which carry the criteria, in place of the commits and Traceability that ADR 0010 names. Follow the steps above with these changes; where a step or its "Done when" line names the spec, a slice or Traceability, read the task and its criteria.
+
+**Step 1: take the task, not a spec.** The task is on the fast route when `/aw-intake` reported `Route: fast` for it in this conversation, or when the work branch's commits since the diff base carry `Done when:` lines and touch no spec under `docs/specs/`. Take the task, its type, its pre-step result and its done-when criteria from intake's report, or else the criteria from the latest of those commits that carries `Done when:` lines (`git log <base>..HEAD --format=%B`), or else ask the user to paste intake's report or to run `/aw-intake` first. Never write the criteria yourself. There is no `status` to check, no slice to pick and no `aw-check-spec` run.
+
+Refuse to go on, and tell the user to run `/aw-intake` again, when there are no done-when criteria, or when meeting a criterion would change a contract (a public API, schema, file format, CLI flag or event), stored data or anything security-related (authentication, permissions, secrets, input from outside): such a task is not on the fast route, and intake sends it to the standard route.
+
+Done when you can name the task, its type and its done-when criteria.
+
+**Step 2: the work branch.** Name it by the adapter's branch naming from a slug of the task, such as `fix/<slug>`. On a rerun, stay on the work branch the earlier call made.
+
+**Step 3: explore the task.** There is no spec to read and no Boundaries to keep. Read the pre-step's evidence along with the code: a bug's reproduction, a refactor's characterization tests, a performance baseline. Check that each criterion is observable and can be met within the task; when one cannot, go to **When the criteria are wrong**.
+
+Done when you know the seams to propose, the files the task changes, and that every criterion can be met.
+
+**Step 4: test-first.** No Test strategy agreed the seams, so agree them now, before the first test: propose a seam for each criterion, with one line on what it catches and what it misses, and ask the user to confirm them in one question. Then build through `aw-tdd` at those seams, one behaviour at a time.
+
+- Name each test so that it quotes the criterion it proves, such as `done when: a wrong password shows an error`.
+- The pre-step's evidence comes first: a bug's reproduction becomes the first failing test, a refactor's characterization tests pass before and after every change, and a performance change is measured again against the baseline.
+- **Test exception:** record it in the commit message (step 7), not in a spec, as a line such as ``Test exception: <criterion>. <why a test at the agreed seam would cost too much>; proven by `verify:` evidence instead``. Write `verify:` when the repo has a verify skill at `.claude/skills/verify-<app>/`, and `manual:`, naming what to check by hand, when it has none.
+
+Done when every criterion has a passing test at an agreed seam or a recorded test exception.
+
+**Step 6: no spec to record in.** Skip it.
+
+**Step 7: the commit carries the criteria.** The commit message names the task, such as `fix: <task>`, and its body holds one `Done when: <criterion>` line per criterion, in intake's words, followed by any `Test exception:` lines. Every commit this route makes writes the whole current set, so the latest commit that carries `Done when:` lines holds the criteria: a rerun after review repeats them, and one after a correction writes the corrected set. `/aw-verify`, `/aw-review` and `/aw-ship` read the criteria back from that commit when the conversation no longer holds intake's report.
+
+Done when the task is in a local commit on the work branch whose message carries every criterion, or in a draft whose path you gave the user.
+
+**Step 8: report each criterion.** In place of the slice, report the task and each done-when criterion with what proves it: its tests, or its test exception. Then name the next skill: `/aw-verify` when the repo has a verify skill at `.claude/skills/verify-<app>/`, and `/aw-review` when it has none. With no verify skill, a criterion with a test exception needs the user to check it by hand: name what to check, and say that `/aw-ship` asks for it and records what they report.
+
+### When the criteria are wrong
+
+When building shows that a done-when criterion is wrong (it cannot be met as stated, contradicts the code, or needs a change to a contract, data or security), stop as **When the spec is wrong** says: commit nothing, write no more code, and list the files changed. Then propose the corrected criterion with the evidence that the old one is wrong. The fast route has no spec to change: the user agrees the new criteria in the conversation, and the next `/aw-build` builds from them and writes them into its commit. When the correction moves the task off the fast route, tell the user to run `/aw-intake` again, which sends it to `/aw-spec`.

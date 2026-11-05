@@ -85,11 +85,11 @@ Report in chat, in this shape:
 **Next:** <the skill to run>
 ```
 
-The fast route has no spec, so for every type but investigation, state 1 to 3 **done when** criteria: each one observable, so that `aw-build` can prove it and `aw-review` can judge against it.
+The fast route has no spec, so for every type but investigation, state 1 to 3 **done when** criteria: each one observable, so that `aw-build` can prove it and `aw-review` can judge against it. They are the task's definition of done for every phase after this one: `aw-build` builds until each holds, `aw-verify` proves them on the real app when a verify skill exists, `aw-review` judges the Spec axis against them, and `aw-ship` shows what proves each. When a criterion can only be met by a change step 3 keeps off the fast route, classify the task again as standard.
 
 **Next**, by route:
 
-- **fast**: `/aw-build`, which works from the done-when criteria; for an investigation, see below.
+- **fast**: `/aw-build`, which works from the done-when criteria with no spec; then `/aw-verify` only when the repo has a verify skill at `.claude/skills/verify-*/`, `/aw-review` and `/aw-ship`, each naming the next. For an investigation, see below.
 - **standard**: `/aw-spec`.
 - **epic**: `/aw-wayfinder`, which charts the deliverables; each one then goes to `/aw-spec`.
 - **investigation**: on the fast route, none, unless the answer shows work to do; then `/aw-intake` again with that work as the task. On the epic route, `/aw-wayfinder`, which charts the questions.
