@@ -90,6 +90,10 @@ _Avoid_: PRD, plan, design doc, ticket
 A numbered, verifiable statement in a spec, written `AC-n`.
 _Avoid_: requirement, user story, AC (alone, without a number)
 
+**Done-when criterion**:
+One of the 1 to 3 observable statements `aw-intake` gives a fast-route task in place of a spec. Every phase on the fast route takes them as the definition of done, and `aw-build` writes them into its commit message as `Done when:` lines.
+_Avoid_: acceptance criterion (on the fast route), exit criterion, definition of done (as a term)
+
 **Evidence**:
 The proof attached to an acceptance criterion: a test, a verify journey, or a manual check with its reason.
 _Avoid_: proof, coverage, validation

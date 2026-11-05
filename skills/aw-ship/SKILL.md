@@ -58,7 +58,7 @@ Use `diff-base` for the base. Run `git status --porcelain`, `git branch --show-c
 Then find the route:
 
 - **Standard or epic route: the spec.** Take the spec the user names, or else the one the diff touches under `docs/specs/<slug>/spec.md`, or else the one whose slug the branch name holds. When more than one fits, or none does, list the specs under `docs/specs/` with their `status` and ask. Read its frontmatter: `draft` → stop, it has not passed spec approval, tell the user to finish it with `/aw-spec`; `superseded` → stop and name its `superseded-by`; `approved` → go on; `implemented` → go on only when this branch's own commits set it, as a rerun of this skill does, and otherwise stop, since a shipped spec changes through `/aw-spec`. Refuse while a slice's done marker is not `[x]`: name it, and tell the user to build it with `/aw-build`.
-- **Fast route: no spec.** Take the "done when" criteria from `/aw-intake`'s report in this conversation, or ask the user for them.
+- **Fast route: no spec.** The change is on the fast route when `/aw-intake` reported `Route: fast` for it in this conversation, or when its commits carry the `Done when:` lines `/aw-build` writes and touch no spec under `docs/specs/`. Take the "done when" criteria from intake's report, or else from those lines (`git log <base>..HEAD --format=%B`), or else ask the user for them. They are the definition of done this ship proves, and no spec is created for them.
 
 When the spec's `ticket` field or the commits name a ticket, use `fetch-ticket`, for the review request's title and its closing line.
 
@@ -114,7 +114,7 @@ Write the body to `.aw/review-requests/<yyyymmdd-hhmmss>-review-request.md`. It 
 - **After:** <at HEAD: the same, now passing>
 - **Checks:** `<the full command>` passed at <short hash>.
 - **Review:** `<path of the review report>`: <n> introduced defects, <m> pre-existing, <k> introduced risks.
-- **Criteria:** <one line per AC-n with its Traceability evidence; or, on the fast route, one line per done-when criterion with what proves it>
+- **Criteria:** <one line per AC-n with its Traceability evidence; or, on the fast route, one line per done-when criterion with what proves it: its tests, its verify result under `.aw/verify/`, or the check by hand the user reported>
 
 ## Merge Danger
 
@@ -147,7 +147,7 @@ Write the body to `.aw/review-requests/<yyyymmdd-hhmmss>-review-request.md`. It 
 - the `full` check level passed, with its command;
 - the review report shows no introduced defect;
 - each introduced risk from the report, listed for the user to accept;
-- on the standard and epic routes, the spec is `implemented` and `aw-check-spec` passes; on the fast route, each done-when criterion is met;
+- on the standard and epic routes, the spec is `implemented` and `aw-check-spec` passes; on the fast route, each done-when criterion is met, proven by a test, a verify result or a check by hand. For a criterion with none, such as one whose test exception named a check by hand, ask the user for that check and record only what they report;
 - no debugging leftovers or unresolved TODOs in the diff: `git diff <base>...HEAD` searched for them;
 - no secrets in the diff: searched for keys, tokens and passwords;
 - dependency changes, if any, listed, with the review's Security axis on them;
