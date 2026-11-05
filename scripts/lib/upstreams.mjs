@@ -38,8 +38,8 @@
 // `check` needs only the lock and the copies, so it runs offline. It undoes
 // the transform on each copied file, compares the result to the locked
 // upstream hash, and redoes the transform to confirm the copy carries every
-// rename, path rewrite and mapping it makes. It also reports any path in a copy that
-// still climbs out of the copy's folder.
+// rename, path rewrite and mapping it makes. It also reports any path in a
+// copy that still climbs out of the copy's folder.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -157,13 +157,12 @@ function replacedFindings(upstreams, copies) {
     const at = `${MANIFEST}: upstream "${upstream.key}"`;
     for (const [from, to] of Object.entries(upstream.replaced)) {
       const copied = copies.find((copy) => copy.name === from);
-      const copyNamed = copies.find((copy) => copy.folder === to);
       if (copied) {
         findings.push(`${at}: replaced skill "${from}" is copied from upstream "${copied.upstream.key}"; a copied skill is renamed, not replaced`);
       } else if (!to.startsWith(PREFIX) || to === PREFIX) {
         findings.push(`${at}: replaced skill "${from}" maps to "${to}", which lacks the ${PREFIX} prefix of a kit skill`);
-      } else if (copyNamed) {
-        findings.push(`${at}: replaced skill "${from}" maps to "${to}", the copy of "${copyNamed.name}"; it must map to a kit skill`);
+      } else if (copies.some((copy) => copy.folder === to)) {
+        findings.push(`${at}: replaced skill "${from}" maps to "${to}", the copy of "${to.slice(PREFIX.length)}"; it must map to a kit skill`);
       }
     }
   }

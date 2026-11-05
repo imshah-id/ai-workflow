@@ -4,8 +4,8 @@
 // directory, so nothing touches the network) and a fixture kit whose
 // upstreams.json points at it, installs the copies with
 // `node scripts/sync-upstreams.mjs install <kit>`, and asserts on exit codes,
-// reported findings and output. The rename and relocation tests also read the
-// installed copy, since the copy is what `install` outputs.
+// reported findings and output. The rename, relocation and mapping tests also
+// read the installed copy, since the copy is what `install` outputs.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -479,15 +479,15 @@ const ALPHA_WITH_REPLACED =
   'See [`gamma`](https://example.com/gamma) for more.\n' +
   'A gamma ray and `gamma` alone are not references.\n';
 
-// A fixture kit whose upstream declares `replaced`, with alpha's text.
-function kitWithReplaced({ alpha = ALPHA_WITH_REPLACED, replaced = { gamma: 'aw-omega' }, edit } = {}) {
+// A fixture kit whose upstream declares that `aw-omega` replaces `gamma`,
+// installed with alpha's text referring to gamma.
+function kitWithReplaced() {
   const files = upstreamFiles();
-  files['skills/group/alpha/SKILL.md'] = alpha;
+  files['skills/group/alpha/SKILL.md'] = ALPHA_WITH_REPLACED;
   return installedKit({
     upstream: makeUpstream(files),
-    edit: (kit, upstream) => {
-      kit['upstreams.json'].upstreams.fixture.replaced = replaced;
-      if (edit) edit(kit, upstream);
+    edit: (kit) => {
+      kit['upstreams.json'].upstreams.fixture.replaced = { gamma: 'aw-omega' };
     },
   });
 }
