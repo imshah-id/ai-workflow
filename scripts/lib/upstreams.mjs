@@ -344,13 +344,14 @@ function checkFile(at, bytes, expectedBlob, file, transform) {
   return [`${at}: differs from upstream plus the mechanical transform; a copy may not be edited by hand`];
 }
 
-// A relative path that climbs out of the copy's folder: one or more `../`
-// then a file name with an extension, optionally followed by an `#anchor`.
-// A bare `../`, as in code that tests for it, is not a path to a file. This
-// is a heuristic: a path to a folder, or to a file without an extension, is
-// not caught, so that example strings such as `../../etc/passwd` in a
-// security skill are not taken for paths the copy depends on.
-const CLIMBING_PATH = /(?<![\w./-])((?:\.\.\/)+(?:[\w.-]+\/)*[\w-][\w.-]*\.\w+)(#[\w-]*)?/g;
+// A relative path that climbs: one or more `../` then at least one path
+// segment, to a file with or without an extension or to a folder with or
+// without a trailing `/`, optionally followed by an `#anchor`. A bare `../`
+// or `..`, as in code that tests for it, has no segment and is not a path. A
+// `../` right after a word character, `.`, `/` or `-` is inside a longer path
+// or word, so it does not start one. outsidePaths() keeps only the matches
+// that resolve outside the copy's folder.
+const CLIMBING_PATH = /(?<![\w./-])((?:\.\.\/)+(?:[\w.-]+\/)*[\w.-]*[\w-]\/?)(#[\w-]*)?/g;
 
 // One finding per path in a copied file that resolves outside the copy's
 // folder (ADR 0002: a copy is installed one folder at a time).
@@ -361,7 +362,8 @@ function outsidePaths(at, bytes, file) {
   text.split('\n').forEach((line, index) => {
     for (const [match, path] of line.matchAll(CLIMBING_PATH)) {
       if (!posix.normalize(posix.join(posix.dirname(file), path)).startsWith('../')) continue;
-      findings.push(`${at}:${index + 1}: points outside the copy's folder: ${match}; list the file under "shared" in ${MANIFEST}`);
+      const hint = path.endsWith('/') ? 'list the files the copy needs from it' : 'list the file';
+      findings.push(`${at}:${index + 1}: points outside the copy's folder: ${match}; ${hint} under "shared" in ${MANIFEST}`);
     }
   });
   return findings;

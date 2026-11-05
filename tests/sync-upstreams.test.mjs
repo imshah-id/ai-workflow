@@ -414,6 +414,45 @@ test('a copy pointing to an upstream file it does not relocate is reported', () 
   ]);
 });
 
+// A kit whose `delta` copy also has references/notes.md with the given text.
+function kitWithDeltaNotes(notes) {
+  const upstream = makeUpstream({
+    ...upstreamFiles(),
+    'references/checklist.md': CHECKLIST,
+    'skills/group/delta/SKILL.md': DELTA,
+    'skills/group/delta/references/patterns.md': DELTA_PATTERNS,
+    'skills/group/delta/references/notes.md': notes,
+  });
+  return kitWithShared({ upstream });
+}
+
+test('a copy pointing to a folder outside its folder is reported', () => {
+  const { dir } = kitWithDeltaNotes('Helpers live in `../../../shared/`.\n');
+
+  assertOneFinding(
+    validate(dir),
+    /^skills\/aw-delta\/references\/notes\.md:1: points outside the copy's folder: \.\.\/\.\.\/\.\.\/shared\/; list the files the copy needs from it under "shared" in upstreams\.json$/,
+  );
+});
+
+test('a copy pointing to a file without an extension outside its folder is reported', () => {
+  const { dir } = kitWithDeltaNotes('Build with `../../../Makefile`.\n');
+
+  assertOneFinding(
+    validate(dir),
+    /^skills\/aw-delta\/references\/notes\.md:1: points outside the copy's folder: \.\.\/\.\.\/\.\.\/Makefile; list the file under "shared"/,
+  );
+});
+
+test('a copy whose paths climb but stay inside its folder, or are not paths, is not reported', () => {
+  const { dir } = kitWithDeltaNotes(
+    'Back to [the skill](../SKILL.md) and `../references/patterns.md#lists`; the folder is `../references/`.\n' +
+      "Not paths: `rel === '../'`, `rel === '..'`, `../..`, a../b and `x/../../y`.\n",
+  );
+
+  assertNoFindings(validate(dir));
+});
+
 test('report lists the upstream commits that changed a shared file a copy relocates', () => {
   const upstream = upstreamWithShared();
   const { dir } = kitWithShared({ upstream });
