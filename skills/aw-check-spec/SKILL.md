@@ -39,6 +39,8 @@ The script and the fallback walk apply the same rules. Specs may use LF or CRLF 
 
 **Sections.** Each of these is a `## ` heading: Problem and goal, Acceptance criteria, Out of scope, Boundaries, Design, Slice plan, Test strategy, Traceability, Open questions. Boundaries holds three `### ` tiers: Always, Ask first, Never.
 
+**Slice plan.** No rule applies to its content. Each slice opens with a done marker, `[ ]` until it is built and `[x]` once it is, and may carry `Delivers:`, `Blocked by:`, `Mirror:` and `Test exception:` items; none of these is a finding.
+
 **Acceptance criteria.** Each criterion is a list item or heading that starts with its id, `- **AC-n**: Given …, when …, then …`. The section defines at least one, and each `AC-n` once.
 
 **Traceability.** A table whose first column is the `AC-n` and second its evidence. Every defined `AC-n` has a row, and every row's `AC-n` is defined. Several entries in one cell are separated by `;` or `<br>` before the next `test:`, `verify:` or `manual:`, so a reason may hold a `;`:

@@ -39,7 +39,7 @@ ticket: "<ticket key or URL; delete this line when there is no ticket>"
 
 ## Slice plan
 
-1. <Slice name> (AC-1). AFK or HITL.
+1. [ ] <Slice name> (AC-1). AFK or HITL.
 
 ## Test strategy
 
