@@ -1,6 +1,6 @@
 ---
 name: aw-review
-description: "Review the diff from the diff base on three axes, Spec, Standards and Security, each in its own clean-context subagent, and report them side by side. A defect counts only when a run proves it; anything else is a risk with its likelihood and cost; pre-existing findings are reported apart. Writes a review report and never posts to the review host. Run after /aw-verify, before /aw-ship."
+description: "Review the diff from the diff base on three axes, Spec, Standards and Security, each in its own clean-context subagent, and report them side by side. A defect counts only when a run proves it; anything else is a risk with its likelihood and cost; pre-existing findings are reported apart. Writes a review report and never posts to the review host. Run before /aw-ship: after /aw-verify on the standard and epic routes, after /aw-build on the fast route."
 disable-model-invocation: true
 ---
 
@@ -40,12 +40,12 @@ Whatever the access levels say, the agent never force-pushes (`--force`, `--forc
 Every axis reports its findings under the same rules. The reviewer of each axis gets them pasted in full in its brief (step 5).
 
 - **Defect**: a finding that a **run** made in this review demonstrates. A run is a command whose output shows the wrong behaviour: a test, a check level, a script, a request to the running app, or, for a documented standard that is a rule about the text itself, a search whose output quotes the lines that break it. A defect names its run (the exact command and the commit it ran on) and quotes the output that shows it. A finding with no such run is never a defect, however sure the reviewer is.
-- **Risk**: every other concern, including a suspected defect no run could demonstrate, and every code smell. A risk states its **likelihood** (low, medium or high, and what it depends on) and its **cost** if it happens (what breaks, and for whom). It is never worded as a defect.
-- **Dropped**: when a run shows the suspected behaviour is right, the concern is not reported at all.
+- **Risk**: every other finding, including a suspected defect no run could demonstrate, and every code smell. A risk states what may go wrong, its **likelihood** (low, medium or high, and what it depends on) and its **cost** if it happens (what breaks, and for whom). It is never worded as a defect.
+- **Dropped**: when a run shows the suspected behaviour is right, the finding is not reported at all.
 - **Introduced or pre-existing**: a defect is **pre-existing** when the same run, made at the merge-base, shows it too; otherwise the change **introduced** it, as it also did when the run cannot be made at the merge-base because what it calls does not exist there. A risk is introduced when it rests on lines the diff adds or changes, and pre-existing otherwise. Pre-existing findings are reported apart: they are not this change's.
-- **Zero findings is a valid outcome.** An axis with nothing to report says "No findings." and nothing more. Do not pad the report with style preferences, praise, restated requirements or "consider" suggestions to fill it.
+- **Zero findings is a valid outcome.** An axis with nothing to report says "No findings." and nothing more. Only defects and risks enter the report: a finding is one or the other, or it is left out.
 
-**Where runs happen.** Never in the user's working tree. A run that needs files of its own, such as a throwaway test, is made in a detached worktree outside the repo: `git worktree add --detach <tmp>/head HEAD`, and `git worktree add --detach <tmp>/base <merge-base>` for the same run at the merge-base, where `<tmp>` is a new directory under the system's temporary directory. Remove each worktree when the run is done, with `git worktree remove --force <dir>`, which removes the worktree and no branch. A throwaway test is never committed and never left behind.
+**Where runs happen.** Every run is made in a detached worktree outside the repo, never in the user's working tree, which may hold uncommitted changes and must stay as it is: `git worktree add --detach <tmp>/head HEAD` for runs at `HEAD`, and `git worktree add --detach <tmp>/base <merge-base>` for the same run at the merge-base, where `<tmp>` is a new directory under the system's temporary directory. Install the project's dependencies in each worktree the way its manifest says, such as `npm ci`, before the first run there. A throwaway test is written in the worktree, never committed and never left behind. Remove each worktree when its runs are done, with `git worktree remove --force <dir>`, which removes the worktree and no branch.
 
 ## Steps
 
@@ -121,13 +121,13 @@ Every brief holds:
 - the **Findings** section above, pasted in full, with **Where runs happen**;
 - the check commands from the checks adapter, or the ones the project's manifest suggests, for its runs;
 - the instruction to change nothing in the user's working tree, commit nothing, push nothing and post nothing;
-- the output shape: three headings, `Defects introduced`, `Risks introduced` and `Pre-existing`, each holding its findings or "None."; or "No findings." alone when all three are empty. Each defect gives the file and line, what is wrong, the run, and its quoted output; each risk gives the file and line, the concern, its likelihood and its cost. Under 400 words, runs' output excepted.
+- the output shape: three headings, `Defects introduced`, `Risks introduced` and `Pre-existing`, each holding its findings or "None."; or "No findings." alone when all three are empty. Each defect gives the file and line, what is wrong, the run, and its quoted output; each risk gives the file and line, what may go wrong, its likelihood and its cost. Under 400 words, runs' output excepted.
 
 Then, per axis:
 
-- **Spec**: the spec's path, or the done-when criteria. The brief: "For each criterion, prove with a run that the change meets it or fails it; a criterion the change does not meet is a defect when a run shows it, and a risk when none can. Report as well behaviour in the diff that the criteria and the scope do not ask for (scope creep), and anything the spec's Out of scope or Never boundaries rule out. Quote the criterion or the spec line for each finding."
-- **Standards**: the list of standards files from step 3, and the smell baseline pasted in full: the subagent has no other access to it. The brief: "Report each place the diff breaks a documented standard, citing the file and the rule, and each baseline smell you spot, naming it and quoting the hunk. A breach is a defect only when a run shows it; a smell is always a risk. Skip anything tooling enforces."
-- **Security**: the text of `aw-security-and-hardening` and the paths of its two references. The brief: "Map the trust boundaries the diff touches and walk the security checklist against them. Prove what you can with a run, such as a request with hostile input, a test of the input handler, or the package manager's audit; report everything else as a risk. When the diff touches no trust boundary, secret, dependency or personal data, say so and report no findings."
+- **Spec**: the spec's path, or the done-when criteria. The brief: "Run the `full` check level at `HEAD`, and each check that fails there at the merge-base too: a failing check is a defect. For each criterion, prove with a run that the change meets it or fails it, starting from the evidence its Traceability row names: running the test a `test:` entry names is such a run; a criterion the change does not meet is a defect when a run shows it, and a risk when none can. Report as well behaviour in the diff that the criteria and the scope do not ask for (scope creep), and anything the spec's Out of scope or Never boundaries rule out. Quote the criterion or the spec line for each finding."
+- **Standards**: the list of standards files from step 3, the smell baseline pasted in full, since the subagent has no other access to it, and the spec's path or the done-when criteria, so that it can judge Speculative Generality. The brief: "Report each place the diff breaks a documented standard, citing the file and the rule, and each baseline smell you spot, naming it and quoting the hunk. A breach is a defect only when a run shows it; a smell is always a risk. Skip anything tooling enforces."
+- **Security**: the text of `aw-security-and-hardening` and the paths of its two references. The brief: "Map the trust boundaries the diff touches and walk the security checklist against them. Prove what you can with a run, such as a request with hostile input, a test of the input handler, or the package manager's audit; report everything else as a risk. When the diff touches no trust boundary, secret, dependency or personal data, you have no findings."
 
 When there is no spec and no done-when criteria, start only the Standards and Security subagents.
 
@@ -135,11 +135,15 @@ Done when every axis that runs has returned its report.
 
 ### 6. Check the defects
 
-For each defect a subagent reported, run its command yourself, at `HEAD` or the merge-base as it says, in a detached worktree as **Where runs happen** says when it needs files of its own. When the output does not show the defect, move it to that axis's risks, saying the run did not reproduce it. When it shows it at the merge-base too, it belongs under `Pre-existing`.
+For each defect a subagent reported, run its command yourself at `HEAD`, and then at the merge-base, in detached worktrees as **Where runs happen** says:
 
-Change nothing else in the reports: do not merge, rerank or reword findings across axes, and add none of your own.
+- **The run at `HEAD` shows the behaviour is right:** drop the defect.
+- **It shows neither way:** move it to that axis's risks, saying the run did not reproduce it, and give it a likelihood and a cost.
+- **It shows the defect:** it stays a defect. It belongs under `Pre-existing` when the run at the merge-base shows it too, and under `Defects introduced` otherwise, whatever the subagent labelled it.
 
-Done when every defect left in the report was reproduced in this context.
+Change nothing else in the reports: do not merge, rerank or reword findings across axes, and add no finding of your own.
+
+Done when every defect left in the report was reproduced at `HEAD` in this context, and its label matches the run at the merge-base.
 
 ### 7. Write the report
 
@@ -154,7 +158,7 @@ Write the report to `.aw/reviews/<yyyymmdd-hhmmss>-review.md`, in this shape:
 
 ## Spec
 
-<The Spec axis's report, verbatim or lightly cleaned, with the defects step 6 moved. Then any slice whose done marker is not `[x]`.>
+<The Spec axis's report, verbatim or lightly cleaned, with step 6's changes. Then, as a note and not a finding, any slice whose done marker is not `[x]`.>
 
 ## Standards
 
@@ -177,6 +181,6 @@ Done when the report is written and every defect in it names the run that proves
 
 Give the report in chat, with its path. Then name what comes next, and tell the user to run it; this skill never runs it:
 
-- **No introduced defect:** `/aw-ship`. Introduced risks are for the user to accept or fix before shipping.
+- **No proven defect:** `/aw-ship`. Introduced risks are for the user to accept or fix before shipping.
 - **An introduced defect:** fix it on the work branch before shipping. A defect against a criterion goes back to `/aw-build` for the slice that covers it, or to `/aw-spec` when the criterion itself is wrong. Then run `/aw-verify` when the fix touches a criterion with `verify:` evidence, and `/aw-review` again.
-- **Pre-existing defects:** they do not hold this change back. Offer to start each as a task of its own with `/aw-intake`.
+- **Pre-existing defects only:** this change is not responsible for them, and the user may fix them first or ship. Offer to start each as a task of its own with `/aw-intake`. When they ship, `/aw-ship` still sees a proven defect in the report, so with `merge` at `write` it does not merge by itself (ADR 0013): a person merges.
