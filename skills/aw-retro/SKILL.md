@@ -10,7 +10,7 @@ Look back over a coding **session** and improve the agent's **environment** so t
 
 Controls are earned (ADR 0009). An **error class** gets a control only once it has happened twice, and the control sits at the highest rung of the **ladder** that works. Every control carries its **demonstration**: a run where it fails on a real case from the session and a run where it passes on a correct one.
 
-This skill proposes, then waits. Until the user approves a candidate, it edits no file in the repo, commits nothing and installs nothing: its runs happen in detached worktrees outside the repo, and the only file it writes is the retro report, which is local state.
+This skill proposes, then waits. Until the user approves a candidate, the user's working tree stays as it is: no edited file, no commit, no added control. Its runs happen in detached worktrees outside the repo, and the only file it writes is the **retro report**, which is local state.
 
 ## Configuration
 
@@ -33,33 +33,35 @@ Whatever the access levels say, the agent never force-pushes (`--force`, `--forc
 
 ## The ladder
 
-An **error class** is a kind of mistake, not one instance of it: "imported a server module into client code", not "the import on line 12". Two **occurrences** are two separate moments where the class happened, each traced to the session's record. The same mistake reported twice, once by a failing test and once by the review, is one occurrence.
+An **error class** is a kind of mistake, not one instance of it: "imported a server module into client code", not "the import on line 12". Two **occurrences** are two separate moments where the class happened, each traced to the session's record or to the **Seen once** list of an earlier retro report. The same mistake reported twice, once by a failing test and once by the review, is one occurrence.
 
 The rungs, highest first. A higher rung makes the mistake harder to make; a lower one only makes it easier to catch:
 
-1. **Architecture**: a change of structure that makes the error class impossible to write, such as one deep module owning a rule that callers keep getting wrong, or a seam that removes the hidden dependency. This skill does not build it: the finding goes to `/aw-improve-codebase-architecture` (step 6).
+1. **Architecture**: a change of structure that makes the error class impossible to write, such as one deep module owning a rule that callers keep getting wrong, or a seam that removes the hidden dependency. This skill does not build it: the finding goes to `/aw-improve-codebase-architecture` (step 6), with the demonstration the new structure must pass.
 2. **Types**: a type that rejects the mistake at compile time, such as a branded type, a narrower union, or a required field.
-3. **Lint or check**: a deterministic check that fails on the mistake: a rule in the repo's own linter, a script under the checks adapter's levels, a CI job, a pre-commit hook, or a `permissions.deny` entry.
+3. **Lint or check**: a deterministic check that fails on the mistake: a rule in the repo's own linter, a script under the checks adapter's levels, a CI job, a pre-commit hook (which ADR 0009 allows only when it comes out of a retro like this one), or a `permissions.deny` entry.
 4. **Behaviour test**: a test at an existing seam that fails while the mistake is in the code.
-5. **Docs**: prose, for judgement calls no tool can decide: a rule in `CODING_STANDARDS.md`, which the reviewer reads, or a doc reached by a navigation pointer.
+5. **Docs**: prose, for judgement calls no tool can decide: a rule in `CODING_STANDARDS.md`, which the reviewer reads, or a doc reached by a **context pointer**, as `aw-writing-for-agents` defines it.
 
 The highest control that **works** is the first rung, walking down, whose control covers the whole class, not only the two occurrences, and passes its demonstration. Skip a rung the repo's language or tooling cannot support, and say why in one line.
 
-**The demonstration.** Every control below architecture is proven by two runs, made in a detached worktree as **Where runs happen** says, each with its exact command and quoted output:
+**The demonstration.** Every control is proven by two runs, made in a detached worktree at `HEAD` with the control added there, as **Where runs happen** says, each with its exact command and quoted output:
 
-- **Fail:** the control rejects a **real case**, one occurrence from the session restored as it was, such as the commit where the mistake landed, or its hunk applied back onto `HEAD`. A synthetic example is not a real case.
-- **Pass:** the control accepts a **correct case**, the same code as the session fixed it, usually `HEAD`. Run the control over the whole repo at `HEAD` too: when it flags other code, those are further occurrences or the control is too broad; report which, and narrow it or add the occurrences to the candidate.
+- **Pass:** the control accepts a **correct case**, the code as the session fixed it, which is usually `HEAD` itself. Run the control over the whole repo at `HEAD` too: when it flags other code, those are further occurrences or the control is too broad; report which, and narrow it or add the occurrences to the candidate.
+- **Fail:** the control rejects a **real case**, one occurrence from the session put back into that same worktree: reverse the session's fix (`git show <fix commit> -- <files> | git apply -R`), or apply the hunk where the mistake landed. When neither applies cleanly to `HEAD`, restore the occurrence by hand from its hunk and say so. A synthetic example is not a real case.
 
 For a docs control, both runs use a subagent with a fresh context window that gets only the doc and the case: it must flag the mistake in the real case and raise nothing on the correct one. When a control fails either run, drop to the next rung and prove that one.
+
+An architecture finding cannot be proven here, since its structure does not exist yet. It states its demonstration instead, the two runs the new structure must pass: the real case no longer compiles, runs or can be written, and the correct case still does.
 
 **Where runs happen.** Every run is made in a detached worktree outside the repo, never in the user's working tree: `git worktree add --detach <tmp>/retro <commit>`, where `<tmp>` is a new directory under the system's temporary directory. Install the project's dependencies there the way its manifest says before the first run. Remove the worktree when its runs are done, with `git worktree remove --force <dir>`, which removes no branch.
 
 ## Improvement categories
 
-Beside error classes, look for three kinds of friction. Each counts under the same rule: two occurrences in the record.
+Beside error classes, look for three kinds of candidate, as Pocock's `retro` does. A coding-standards miss is an error class and needs two occurrences. A navigation or tool-economy friction is a cost, not a mistake, and one traced moment is enough when it was expensive.
 
-- **Navigation**: the session searched long for the same file or fact, or tripped on a hidden dependency between files. The control is a **navigation pointer** from a file the agent already reads, worded with the trigger that should send the agent there. Its demonstration: the session's search is the fail; a fresh-context subagent given the pointer and the same question reaching the answer directly is the pass.
-- **Coding standards**: `aw-review`'s Standards axis, or the reviewer, missed a mistake. Classify it first. A **mechanical** violation (a banned API, an import shape, a file-location rule, a fixed syntactic pattern) goes to the lint-or-check rung or higher, whichever the repo's linter and existing checks make cheapest. Only a genuine **judgement call** becomes a rule in `CODING_STANDARDS.md`, proposed at the docs rung, and the first such rule creates the file. Standards belong to the reviewer, who reads a diff with little context pressure, not to `AGENTS.md` or `CLAUDE.md`, which load into every session and stay for navigation pointers.
+- **Navigation**: the session searched long for a file or fact, or tripped on a hidden dependency between files. The control is a **context pointer** from a file the agent already reads, worded with the trigger that should send the agent there. Its demonstration: the session's search is the fail; a fresh-context subagent given the pointer and the same question reaching the answer directly is the pass.
+- **Coding standards**: `aw-review`'s Standards axis, or the reviewer, missed a mistake. Classify it first. A **mechanical** violation (a banned API, an import shape, a file-location rule, a fixed syntactic shape) goes to the lint-or-check rung or higher, whichever the repo's linter and existing checks make cheapest. Only a genuine **judgement call** becomes a rule in `CODING_STANDARDS.md`, proposed at the docs rung, and the first such rule creates the file. Standards belong to the reviewer, who reads a diff with little context pressure, not to `AGENTS.md` or `CLAUDE.md`, which load into every session and stay for context pointers.
 - **Tool economy**: the session made an expensive tool call for what it returned, such as reading whole files for one line, or a CLI or MCP tool that floods the context. The control streamlines the call: a narrower command, a script that returns only what is needed, or a pointer to the cheaper tool. Its demonstration: the session's call and its output size are the fail; the streamlined call returning the same answer for less is the pass.
 
 ## Steps
@@ -84,7 +86,7 @@ Done when every entry on the list cites its source.
 
 ### 3. Group into classes and count
 
-Group the list into error classes and frictions, and count each one's occurrences. A class with two or more occurrences is a **candidate**. A class seen once is **seen once**: it gets no proposal, and the report keeps it so that a later retro can count it.
+Group the list into error classes and frictions, and count each one's occurrences. An error class with two or more occurrences is a **candidate**, and so is an expensive navigation or tool-economy friction (see **Improvement categories**). An error class seen once is **seen once**: no control is proposed for it, and the report keeps it so that a later retro can count it.
 
 Done when every entry belongs to a candidate or to the seen-once list.
 
@@ -92,7 +94,7 @@ Done when every entry belongs to a candidate or to the seen-once list.
 
 Read the repo's checks first: the checks adapter's levels, the project manifest's `lint`, `check`, `typecheck` and `test` scripts, linter configs, CI workflows, and any pre-commit hook. When a control that would catch a candidate already exists but is unwired, skipped or silently broken, wiring or fixing it is the candidate's control, at that control's rung.
 
-When the repo has no guardrail at all, no CI job and no hook that runs its checks, report that as a finding of its own.
+When the repo wires no check at all, no CI job and no hook that runs its checks, report that as a finding of its own.
 
 Done when each candidate is marked with the existing control that covers it, if any.
 
@@ -104,9 +106,11 @@ Done when every candidate has one control with both runs quoted, or is an archit
 
 ### 6. Hand off architecture findings
 
-When the class is best fixed by a change of structure, write it as an **architecture finding**: the class, its occurrences, the modules involved, and why no lower rung covers it as well. Tell the user to run `/aw-improve-codebase-architecture`, pointed at those modules; this skill never runs it. When a lower rung also works, propose that control as well, proven as usual, as a stopgap until the structure changes.
+When the class is best fixed by a change of structure, write it as an **architecture finding**: the class, its occurrences, the modules involved, why no lower rung covers it as well, and the demonstration the new structure must pass (**The ladder**). Tell the user to run `/aw-improve-codebase-architecture`, pointed at those modules; this skill never runs it.
 
-Done when every architecture finding names the modules to give `/aw-improve-codebase-architecture`.
+Then keep walking down the ladder, and propose the highest lower rung that works as a stopgap until the structure changes, proven as usual. When none works, say so.
+
+Done when every architecture finding names its modules and its demonstration, and has a proven stopgap or the reason it has none.
 
 ### 7. Write the report and wait
 
@@ -127,7 +131,7 @@ Write the report to `.aw/retros/<yyyymmdd-hhmmss>-retro.md`, local state that is
 
 ## Architecture findings
 
-<Each with its modules, for `/aw-improve-codebase-architecture`; or "None.">
+<Each with its occurrences, its modules for `/aw-improve-codebase-architecture`, the demonstration the new structure must pass, and its stopgap candidate's number or why it has none; or "None.">
 
 ## Seen once
 
@@ -146,10 +150,11 @@ Only for the candidates the user approved:
 
 1. **Take a work branch.** Use `start-branch` from the base for the controls, unless the user names another work branch. Never commit on a protected branch. When the working tree holds uncommitted changes, ask whether to set them aside or keep them; never stage them with the control.
 2. **Add the control** as the report describes it, and nothing else.
-3. **Prove it again in the repo:** the control passes on the tree as it now is, and the fail run from the report still fails at its real case. Then run `run-check task`. When either run disagrees with the report, stop for that candidate and report it.
+3. **Run the pass again:** the control passes on the working tree, and `run-check task` passes. When either fails, undo the control's edits, and report the output for that candidate.
 4. **Commit** each control on its own with `commit`, in the commit convention. When a commit hook fails, fix what it reports and commit again; never pass `--no-verify`.
+5. **Run the fail again** in a detached worktree at that commit, as **Where runs happen** says, with the real case put back: the control still rejects it. When it does not, report it: the commit stays on the work branch for the user to keep or revert.
 
-Done when every approved candidate is committed with both runs passing as reported, or you have said why not.
+Done when every approved candidate is committed with both runs matching the report, or you have said why not.
 
 ### 9. Report
 
