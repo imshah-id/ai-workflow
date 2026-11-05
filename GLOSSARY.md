@@ -195,3 +195,23 @@ _Avoid_: risk level, impact
 **Rollback plan**:
 The section of a review request body that says what signal would mean undoing the change, the exact steps to undo it without rewriting history, what the change does to data, and how long undoing it takes.
 _Avoid_: revert plan, backout plan
+
+**Retro report**:
+What `aw-retro` produces: its candidates, each with its control, rung and demonstration, its architecture findings, and the error classes seen once. It stays local, under `.aw/retros/`, and a later retro counts its seen-once entries.
+_Avoid_: retrospective notes, lessons learned
+
+**Error class**:
+A kind of mistake a session made, as opposed to one instance of it. `aw-retro` proposes a control for one only once it has happened twice, each occurrence traced to the session's record or to the seen-once list of an earlier retro report.
+_Avoid_: bug type, recurring issue, pattern
+
+**Control**:
+What `aw-retro` adds to a repo's environment so that an error class cannot recur unnoticed, at one rung of the ladder.
+_Avoid_: guardrail, safeguard, rule (alone)
+
+**Ladder**:
+The rungs a control can sit on, highest first: architecture, types, lint or check, behaviour test, docs. `aw-retro` picks the highest rung whose control covers the whole error class and passes its demonstration, and hands architecture to `aw-improve-codebase-architecture`.
+_Avoid_: hierarchy of controls, escalation levels
+
+**Demonstration**:
+The two runs that prove a control: it fails on a real case, an occurrence from the session put back into the code, and passes on a correct case, the code as the session fixed it. An architecture finding states the demonstration its new structure must pass instead.
+_Avoid_: proof of concept, validation, test run

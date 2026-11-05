@@ -39,6 +39,7 @@
     "./skills/aw-create-verify",
     "./skills/aw-verify",
     "./skills/aw-review",
-    "./skills/aw-ship"
+    "./skills/aw-ship",
+    "./skills/aw-retro"
   ]
 }
