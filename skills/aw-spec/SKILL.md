@@ -63,7 +63,7 @@ Done when no `<placeholder>` from the template is left.
 
 ### 5. Check, then stop
 
-Run `aw-check-spec` on the repo and fix every finding in this spec until the check passes. When it reports `Result: not script-verified`, Node is missing: report that, not a pass.
+Run `aw-check-spec` on the repo and fix every finding on this spec's path until none is left; report findings on other specs to the user, and leave those specs as they are. When it reports `Result: not script-verified`, Node is missing: report that, not a pass.
 
 Then stop. Tell the user:
 
@@ -71,7 +71,7 @@ Then stop. Tell the user:
 - the open `BLOCKS:` questions, if any: the spec cannot be approved until each is resolved;
 - that the spec is a `draft`, and that it becomes `approved` only when they approve it explicitly, here in the conversation, or ask for changes.
 
-End your turn there. Done when the check has passed (or ran by reading only, and you said so) and the user has the summary.
+End your turn there. Done when the check reports no finding on this spec (or ran by reading only, and you said so) and the user has the summary.
 
 ### 6. Spec approval
 
@@ -87,13 +87,13 @@ On approval:
 
 1. Set `status: approved` in the frontmatter, and change nothing else.
 2. When this spec replaces another, set the other's `status: superseded` and add `superseded-by: <this slug>`.
-3. Run `aw-check-spec` again. If it fails, set the status back to `draft`, fix the findings, and ask for approval again.
+3. Run `aw-check-spec` again. If it reports a finding on this spec, set the status back to `draft`, fix the findings, and ask for approval again.
 
-Done when the spec is at `approved` and the check passes. Then name the next skill: `/aw-slices`, to write the slice plan. Tell the user to run it; this skill never runs it.
+Done when the spec is at `approved` and the check reports no finding on it. Then name the next skill: `/aw-slices`, to write the slice plan. Tell the user to run it; this skill never runs it.
 
 ## Changing a spec
 
-A spec is a living document: a later change that alters its behaviour updates it. To change an existing spec, set it back to `status: draft`, run steps 2 to 5 for the change, and ask for approval again (step 6). An `implemented` spec goes back to `draft` too; `/aw-ship` sets it to `implemented` again when the change lands.
+A spec is a living document: a later change that alters its behaviour updates it. To change an existing spec, whether `approved` or `implemented`, set it back to `status: draft`, run steps 2 to 5 for the change, and ask for approval again (step 6).
 
 ## Credits
 

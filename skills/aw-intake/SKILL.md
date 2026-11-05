@@ -48,13 +48,13 @@ Done when you can name the modules the task changes and whether it changes a con
 - **performance**: the same behaviour, faster or using less.
 - **investigation**: a question to answer; nothing changes.
 
-**Route**, for every type except investigation, which takes no route:
+**Route**, one of:
 
 - **fast**: fits in one session and changes no contract (a public API, schema, file format, CLI flag or event), no stored data and nothing security-related (authentication, permissions, secrets, input from outside).
 - **standard**: everything else.
 - **epic**: several sessions or several deliverables, each of which deserves its own spec.
 
-When two routes fit, pick the longer one: epic over standard, standard over fast. Give a reason for the type and one for the route, each naming what in the task or the code decided it. The user may choose another route; record their choice and their reason.
+An investigation changes nothing, so it never needs a spec: it takes the fast route, or the epic route when answering it spans several sessions. When two routes fit, pick the longer one: epic over standard, standard over fast. Give a reason for the type and one for the route, each naming what in the task or the code decided it. The user may choose another route; record their choice and their reason.
 
 Done when the type and route are stated, each with its reason.
 
@@ -68,6 +68,8 @@ Run the type's pre-step before any change, as [`PRE-STEPS.md`](PRE-STEPS.md) des
 - **investigation**: answer the question, citing code, or hand it to `aw-research`. An investigation changes nothing.
 - **feature**: no pre-step.
 
+When the pre-step changes what step 3 rested on, classify again: a bug that cannot be reproduced goes on the standard route or longer, and an investigation that turns out to span several sessions goes on the epic route, with its pre-step left to `/aw-wayfinder`.
+
 Done when the type's section of `PRE-STEPS.md` says it is.
 
 ### 5. Report
@@ -79,17 +81,17 @@ Report in chat, in this shape:
 **Type:** <type>, because <reason>
 **Route:** <route>, because <reason>
 **Pre-step:** <what ran and what it showed: the reproduction command, the characterization tests and their result, the baseline numbers, or "none">
-**Done when:** <fast route only: 1 to 3 criteria>
+**Done when:** <fast route, except an investigation: 1 to 3 criteria>
 **Next:** <the skill to run>
 ```
 
-On the fast route, there is no spec, so state 1 to 3 **done when** criteria: each one observable, so that `aw-build` can prove it and `aw-review` can judge against it.
+The fast route has no spec, so for every type but investigation, state 1 to 3 **done when** criteria: each one observable, so that `aw-build` can prove it and `aw-review` can judge against it.
 
 **Next**, by route:
 
-- **fast**: `/aw-build`, which works from the done-when criteria.
+- **fast**: `/aw-build`, which works from the done-when criteria; for an investigation, see below.
 - **standard**: `/aw-spec`.
 - **epic**: `/aw-wayfinder`, which charts the deliverables; each one then goes to `/aw-spec`.
-- **investigation**: none, unless the answer shows work to do; then `/aw-intake` again with that work as the task.
+- **investigation**: on the fast route, none, unless the answer shows work to do; then `/aw-intake` again with that work as the task. On the epic route, `/aw-wayfinder`, which charts the questions.
 
 Tell the user to run the next skill; this skill never runs it. Done when the report has every line that applies to the route.

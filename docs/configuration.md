@@ -13,7 +13,7 @@ How kit skills find a repo's configuration, what they may do with it, and what t
 | `### Checks` | `checks.md` | The command for each check level |
 | `### Domain docs` | `domain.md` | Where the glossary and ADRs live |
 
-The templates are in `skills/aw-setup/adapters/`. `node scripts/validate-kit.mjs` fails when one of them misses a canonical operation, names one outside the vocabulary, or gives one an impossible access level. It also fails when a file under `skills/` has a `## Never allowed` or `## Defaults when unconfigured` section whose text differs from this page's, which is the source. A phase skill restates the defaults in such a section.
+The templates are in `skills/aw-setup/adapters/`. `node scripts/validate-kit.mjs` fails when one of them misses a canonical operation, names one outside the vocabulary, or gives one an impossible access level. It also fails when a file under `skills/` has a `## Never allowed` or `## Defaults when unconfigured` section whose text differs from this page's, which is the source. `aw-intake` and `aw-spec` restate the defaults in such a section.
 
 ## Canonical operations
 

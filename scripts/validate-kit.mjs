@@ -100,7 +100,10 @@ function disablesImplicitInvocation(yaml) {
   return false;
 }
 
-// The phase skills (ADRs 0010, 0013) and aw-setup are user-invoked (ADR 0001).
+// Skills that are user-invoked whatever they declare: aw-setup and the phase
+// skills, which the user runs one after another (ADRs 0010 and 0013, and the
+// v1 spec's naming decisions). A user-invoked skill cannot be called by
+// another skill (ADR 0012).
 const USER_INVOKED_SKILLS = [
   'aw-setup',
   'aw-intake',
@@ -115,30 +118,45 @@ const USER_INVOKED_SKILLS = [
   'aw-retro',
 ];
 
-// A skill is user-invoked when it declares either flag, and then it must
-// declare both: Claude Code reads SKILL.md, Codex reads agents/openai.yaml.
-// A phase skill must declare them even when it declares neither.
-function checkInvocation(dir, folder, fields) {
-  const at = `skills/${folder}`;
-  const yamlPath = `${at}/agents/openai.yaml`;
+// How a skill declares its invocation: `claude` when SKILL.md sets
+// `disable-model-invocation: true`, `codex` when agents/openai.yaml disables
+// implicit invocation, and `userInvoked` when either is set or the skill is
+// one of USER_INVOKED_SKILLS.
+function invocation(dir, folder, fields) {
+  const yamlPath = `skills/${folder}/agents/openai.yaml`;
   const yamlFile = join(dir, yamlPath);
   const yaml = existsSync(yamlFile) ? readFileSync(yamlFile, 'utf8') : null;
-  const claudeUserInvoked = fields['disable-model-invocation'] === 'true';
-  const codexUserInvoked = yaml !== null && disablesImplicitInvocation(yaml);
+  const claude = fields?.['disable-model-invocation'] === 'true';
+  const codex = yaml !== null && disablesImplicitInvocation(yaml);
+  const userInvoked = claude || codex || USER_INVOKED_SKILLS.includes(folder);
+  return { yamlPath, hasYaml: yaml !== null, claude, codex, userInvoked };
+}
 
-  if (claudeUserInvoked && yaml === null) {
+// A user-invoked skill must declare both flags: Claude Code reads SKILL.md,
+// Codex reads agents/openai.yaml.
+function checkInvocation(dir, folder, fields) {
+  const at = `skills/${folder}`;
+  const { yamlPath, hasYaml, claude, codex, userInvoked } = invocation(dir, folder, fields);
+  if (claude && !hasYaml) {
     return [`${yamlPath}: missing; a user-invoked skill needs one with "policy: allow_implicit_invocation: false"`];
   }
-  if (claudeUserInvoked && !codexUserInvoked) {
+  if (claude && !codex) {
     return [`${yamlPath}: a user-invoked skill must set "policy: allow_implicit_invocation: false"`];
   }
-  if (codexUserInvoked && !claudeUserInvoked) {
+  if (codex && !claude) {
     return [`${at}/SKILL.md: openai.yaml disables implicit invocation, so the frontmatter must set "disable-model-invocation: true"`];
   }
-  if (!claudeUserInvoked && USER_INVOKED_SKILLS.includes(folder)) {
-    return [`${at}/SKILL.md: a phase skill is user-invoked (ADR 0001), so the frontmatter must set "disable-model-invocation: true" and ${yamlPath} "policy: allow_implicit_invocation: false"`];
+  if (userInvoked && !claude) {
+    return [`${at}/SKILL.md: aw-setup and the phase skills are user-invoked, so the frontmatter must set "disable-model-invocation: true" and ${yamlPath} "policy: allow_implicit_invocation: false"`];
   }
   return [];
+}
+
+// The Markdown files under `skills/`, relative and sorted.
+function skillMarkdownFiles(dir) {
+  return kitFiles(dir)
+    .filter((path) => path.startsWith('skills/') && path.endsWith('.md'))
+    .sort();
 }
 
 // Text without its opening `---` frontmatter block, where a quoted `name:`
@@ -150,17 +168,18 @@ function withoutFrontmatter(text) {
 
 // A Skill tool call names its skill in double quotes ("aw-tdd"), the form
 // the sync rename also treats as a reference. A user-invoked skill cannot be
-// called that way (ADR 0001): a skill names it as a slash command for the
+// called that way (ADR 0012): a skill names it as a slash command for the
 // user to run.
 function checkSkillToolCalls(dir) {
   const userInvoked = new Set(
     skillFolders(dir).filter((folder) => {
       const skillFile = join(dir, 'skills', folder, 'SKILL.md');
-      return existsSync(skillFile) && frontmatter(readFileSync(skillFile, 'utf8'))?.['disable-model-invocation'] === 'true';
+      const fields = existsSync(skillFile) ? frontmatter(readFileSync(skillFile, 'utf8')) : null;
+      return invocation(dir, folder, fields).userInvoked;
     }),
   );
   const findings = [];
-  for (const path of kitFiles(dir).filter((file) => file.startsWith('skills/') && file.endsWith('.md')).sort()) {
+  for (const path of skillMarkdownFiles(dir)) {
     const text = withoutFrontmatter(readFileSync(join(dir, path), 'utf8'));
     const called = new Set([...text.matchAll(/"(aw-[a-z0-9-]+)"/g)].map((match) => match[1]));
     for (const name of [...called].filter((candidate) => userInvoked.has(candidate)).sort()) {
@@ -468,9 +487,7 @@ function checkRestatedSection(dir, skillFiles, heading) {
 }
 
 function checkRestatedSections(dir) {
-  const skillFiles = kitFiles(dir)
-    .filter((path) => path.startsWith('skills/') && path.endsWith('.md'))
-    .sort();
+  const skillFiles = skillMarkdownFiles(dir);
   return RESTATED_SECTIONS.flatMap((heading) => checkRestatedSection(dir, skillFiles, heading));
 }
 

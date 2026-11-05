@@ -8,7 +8,7 @@ Run a check level through `run-check <level>`. With no checks adapter, propose t
 
 Call the Skill tool with "aw-diagnosing-bugs" and work through its Phase 1 (build a feedback loop) and Phase 2 (reproduce and minimise). Stop there: the hypothesis, the fix and the regression test come later, in `aw-build`.
 
-Done when you have one command, already run, that goes red on this bug, and the smallest input that still reproduces it. When that skill's Phase 1 says no loop can be built, report what you tried and what it asks the user for; the bug counts as not reproduced, and the route stays at least standard.
+Done when you have one command, already run, that goes red on this bug, and the smallest input that still reproduces it. When that skill's Phase 1 says no loop can be built, report what you tried and what it asks the user for; the bug counts as not reproduced.
 
 ## Refactor: characterization tests
 
@@ -19,7 +19,7 @@ Pin the behaviour the refactor must keep, so that any change in it shows up as a
 3. For each behaviour no existing test pins, write a test at that interface whose expected value is what the current code does, observed by running it. Name each test after the behaviour, and mark the file or block as characterization tests.
 4. Run them, with the existing tests of that interface, on the unchanged code.
 
-Leave the tests in the working tree; `aw-build` commits them with the first change. Done when every listed behaviour is pinned by a test, existing or new, and all of them pass on the current code.
+Then commit the new tests on their own, through `start-branch` when you are on the base branch and then `commit`, so that every later phase starts from them. Done when every listed behaviour is pinned by a test, existing or new, all of them pass on the current code, and the new tests are committed or their `commit` left as a draft.
 
 ## Performance: baseline
 
@@ -32,12 +32,12 @@ Done when the file holds at least five runs of one command and the report quotes
 
 ## Investigation: answer, changing nothing
 
-An investigation reads and runs read-only commands. It edits no tracked file, writes nothing to the tracker, creates no branch and makes no commit. The only place it may write is `.aw/`.
+An investigation reads and runs read-only commands, and writes only under `.aw/`: it edits no tracked file, writes nothing to the tracker, creates no branch and makes no commit. Before anything else, run `git status --porcelain` and keep its output, to compare against at the end.
 
 - **The answer is in the repo:** answer the question, and cite every claim about the repo as `path:line`. When a claim rests on running something, quote the command and its output.
 - **The answer needs sources outside the repo** (a library's documentation, a standard, a third-party API's behaviour): call the Skill tool with "aw-research", and tell it to save its findings to `.aw/research/<slug>.md`. Report what you asked it and where the findings will land.
 
-Done when the question is answered with citations or handed to `aw-research`, and `git status --porcelain` shows no change outside `.aw/` that was not there when intake started.
+Done when the question is answered with citations or handed to `aw-research`, and `git status --porcelain`, run again, shows nothing outside `.aw/` that the first run did not show.
 
 ## Feature
 

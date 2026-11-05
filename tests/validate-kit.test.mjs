@@ -410,13 +410,15 @@ test('never-allowed restatements that match the configuration page up to whitesp
 
 const DEFAULTS = 'When an adapter is missing, say once: "using defaults, run `/aw-setup`". Tracker: `none`.';
 
-function defaultsPage(body = DEFAULTS) {
-  return neverAllowedPage().replace('## Defaults\n\nNone.', `## Defaults when unconfigured\n\n${body}`);
+// A configuration page with both restatable sections: the never-allowed list
+// and the defaults.
+function configurationPage(defaults = DEFAULTS) {
+  return neverAllowedPage().replace('## Defaults\n\nNone.', `## Defaults when unconfigured\n\n${defaults}`);
 }
 
 test('a defaults restatement in a skill that differs from the configuration page is reported', () => {
   const kit = validKit();
-  kit['docs/configuration.md'] = defaultsPage();
+  kit['docs/configuration.md'] = configurationPage();
   kit['skills/aw-beta/SKILL.md'] += `\n## Defaults when unconfigured\n\n${DEFAULTS.replace('`none`', '`local`')}\n`;
 
   assertOneFinding(
@@ -425,7 +427,7 @@ test('a defaults restatement in a skill that differs from the configuration page
   );
 });
 
-// Phase skills and aw-setup are user-invoked (ADR 0001). The user-invoked
+// Phase skills and aw-setup are user-invoked (ADRs 0010, 0013). The user-invoked
 // check above only catches a skill that declares one flag and not the other,
 // so a phase skill is also reported when it declares neither.
 
@@ -434,11 +436,11 @@ test('a phase skill that declares neither invocation flag is reported', () => {
   kit['.claude-plugin/plugin.json'].skills.push('./skills/aw-spec');
   kit['skills/aw-spec/SKILL.md'] = '---\nname: aw-spec\ndescription: Write the spec.\n---\n\nBody.\n';
 
-  assertOneFinding(runOn(kit), /^skills\/aw-spec\/SKILL\.md: .*phase skill.*disable-model-invocation: true/);
+  assertOneFinding(runOn(kit), /^skills\/aw-spec\/SKILL\.md: .*phase skills are user-invoked.*disable-model-invocation: true/);
 });
 
 // A user-invoked skill cannot be called through the Skill tool, so no skill
-// may name one the way a Skill tool call does, in double quotes (ADR 0001). A
+// may name one the way a Skill tool call does, in double quotes (ADR 0012). A
 // phase skill tells the user to run the next one as a slash command instead.
 
 test('a skill that calls a user-invoked skill through the Skill tool is reported', () => {
@@ -452,6 +454,15 @@ test('calling a model-invoked skill, or naming a user-invoked one as a slash com
   const kit = validKit();
   kit['skills/aw-beta/SKILL.md'] += '\nCall the Skill tool with "aw-alpha". Then tell the user to run `/aw-beta`.\n';
   kit['skills/aw-beta/SKILL.md'] = kit['skills/aw-beta/SKILL.md'].replace('name: aw-beta', 'name: "aw-beta"');
+
+  assertNoFindings(runOn(kit));
+});
+
+test('a defaults restatement that matches the configuration page up to whitespace passes', () => {
+  const kit = validKit();
+  kit['docs/configuration.md'] = configurationPage();
+  kit['skills/aw-beta/SKILL.md'] +=
+    `\n## Defaults when unconfigured\n\n${DEFAULTS.replace('. ', '.\n')}\n\n## Steps\n\nMore.\n`;
 
   assertNoFindings(runOn(kit));
 });
