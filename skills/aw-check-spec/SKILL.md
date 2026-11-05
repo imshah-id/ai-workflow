@@ -46,7 +46,7 @@ The script and the fallback walk apply the same rules. Specs may use LF or CRLF 
 **Traceability.** A table whose first column is the `AC-n` and second its evidence. Every defined `AC-n` has a row, and every row's `AC-n` is defined. Several entries in one cell are separated by `;` or `<br>` before the next `test:`, `verify:` or `manual:`, so a reason may hold a `;`:
 
 - `test: <path>`: a test file, relative to the repo root, with `/` or `\`.
-- `verify: <path>`: a verify result file or folder, relative to the repo root.
+- `verify: <path>`: a verify result file or folder, relative to the repo root. `aw-verify` follows the path with its result, `(passed)`, `(failed)` or `(inconclusive)`, which is not part of the path.
 - `manual: <reason>`: what was checked by hand and why no test or verify journey covers it.
 
 **Open questions.** A list item starting with `BLOCKS:` is an open blocking question. Once answered, the answer goes into the spec and the prefix becomes `RESOLVED:`. At `approved` and `implemented`, no `BLOCKS:` item remains. A `superseded` spec is exempt, since it may have been superseded as a draft.

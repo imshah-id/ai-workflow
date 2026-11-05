@@ -269,6 +269,19 @@ test('a verify: path that does not exist is reported', () => {
   );
 });
 
+// A verify result as aw-verify records it: the backticked path of the result
+// file, then the verify result in parentheses.
+test('a verify: entry with its result in parentheses resolves to its path', () => {
+  assertNoFindings(runOn(withEvidence('AC-2', 'verify: `docs/specs/login/verify/ac-2.md` (passed)')));
+});
+
+test('a verify: entry whose result file does not exist is reported by its path alone', () => {
+  assertOneFinding(
+    runOn(withEvidence('AC-2', 'verify: `docs/specs/login/verify/ac-9.md` (failed)')),
+    finding(/AC-2: verify path "docs\/specs\/login\/verify\/ac-9\.md" does not exist$/),
+  );
+});
+
 test('a manual: entry without a reason is reported', () => {
   assertOneFinding(runOn(withEvidence('AC-3', 'manual:')), finding(/AC-3.*manual.*reason/));
 });
@@ -432,4 +445,25 @@ test('an approved spec with one slice ticked and a test exception, as aw-build l
     '| AC-3 | manual: support flow needs a staff account we cannot script |\n';
 
   assertNoFindings(runOn({ [SPEC]: specText({ frontmatter: 'status: approved\nticket: "#12"\n', parts }) }));
+});
+
+// The spec as aw-verify leaves it, once aw-ship has set it to implemented:
+// each criterion's row keeps the test and manual entries it had and gains the
+// result aw-verify recorded for it, a file under the spec's verify/ folder
+// with its result in parentheses. An inconclusive result rests on the other
+// evidence in its row. This pins that the check resolves every verify: path.
+test('an implemented spec with the verify results aw-verify records passes', () => {
+  const parts = sections();
+  parts.Traceability =
+    '| Acceptance criterion | Evidence |\n| --- | --- |\n' +
+    '| AC-1 | test: `tests/login.test.mjs`; verify: `docs/specs/login/verify/ac-1.md` (passed) |\n' +
+    '| AC-2 | verify: `docs/specs/login/verify/ac-2.md` (passed) |\n' +
+    '| AC-3 | verify: `docs/specs/login/verify/ac-3.md` (inconclusive); ' +
+    'manual: support flow needs a staff account we cannot script |\n';
+
+  assertNoFindings(runOn({
+    ...validRepo(specText({ parts })),
+    'docs/specs/login/verify/ac-1.md': '# AC-1\n\nResult: passed\n',
+    'docs/specs/login/verify/ac-3.md': '# AC-3\n\nResult: inconclusive\n',
+  }));
 });

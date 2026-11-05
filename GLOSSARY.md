@@ -151,3 +151,19 @@ _Avoid_: sign-off, spec review
 **Verify skill**:
 A skill generated inside one repo that starts, drives and observes that repo's real app to gather evidence.
 _Avoid_: e2e skill, test harness
+
+**Feature map**:
+The table in a verify skill that lists the features a user reaches in the app, each with its entry point, how to drive it and what to observe. `aw-verify` turns an acceptance criterion into a verify journey through it.
+_Avoid_: route list, sitemap
+
+**Verify journey**:
+The run that proves one acceptance criterion on the real app through the verify skill: set up its "given", perform its "when", and observe its "then". Called a journey for short in the verify skills.
+_Avoid_: scenario, e2e test
+
+**Smoke journey**:
+The shortest run through a verify skill that proves the skill itself works: start the app, check it is healthy, drive one feature, observe it, clean up. `aw-create-verify` runs it once before finishing.
+_Avoid_: smoke test, sanity check
+
+**Verify result**:
+What one verify journey found: passed, failed or inconclusive. `aw-verify` writes it to a file under the spec's `verify/` folder and names it, with the result, in Traceability.
+_Avoid_: test result, verification status

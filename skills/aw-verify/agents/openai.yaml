@@ -1,0 +1,5 @@
+interface:
+  display_name: "Verify"
+  short_description: "Prove each acceptance criterion on the real app"
+policy:
+  allow_implicit_invocation: false

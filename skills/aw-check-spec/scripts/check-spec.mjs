@@ -98,6 +98,10 @@ function evidenceEntries(cell) {
 // A `test:` or `verify:` path relative to the repo root, either separator.
 const repoPath = (dir, path) => join(dir, ...path.split(/[\\/]+/));
 
+// The verify result aw-verify records after a verify path, as in
+// `verify: <path> (passed)`. It is not part of the path.
+const VERIFY_RESULT_SUFFIX = /\s+\((?:passed|failed|inconclusive)\)$/;
+
 // How each kind of evidence resolves: a finding message, or null when the
 // entry resolves.
 const RESOLVES = {
@@ -108,7 +112,8 @@ const RESOLVES = {
       ? null
       : `test file "${path}" does not mention ${id}`;
   },
-  verify(dir, id, path) {
+  verify(dir, id, value) {
+    const path = value.replace(VERIFY_RESULT_SUFFIX, '');
     return path && existsSync(repoPath(dir, path)) ? null : `verify path "${path}" does not exist`;
   },
   manual(dir, id, reason) {
