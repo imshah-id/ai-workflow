@@ -33,6 +33,7 @@
     "./skills/aw-check-spec",
     "./skills/aw-setup",
     "./skills/aw-intake",
+    "./skills/aw-wayfinder",
     "./skills/aw-spec",
     "./skills/aw-slices",
     "./skills/aw-build",

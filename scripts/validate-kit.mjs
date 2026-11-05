@@ -430,16 +430,24 @@ function checkAdapterTemplate(at, kind, text) {
 // Adapter templates live in a skill's `adapters/` folder (ADR 0006). Each
 // tracker, VCS and checks template states, for every canonical operation of
 // its kind, how it is performed and its access level.
+//
+// A skill installed through `npx skills` reads only its own folder, so a
+// skill that needs another skill's template carries a copy of it under the
+// same file name. Each copy must match the first one found, in folder order.
 function checkAdapterTemplates(dir) {
   const findings = [];
+  const firstCopy = new Map();
   for (const folder of skillFolders(dir)) {
     const adaptersDir = join(dir, 'skills', folder, 'adapters');
     if (!existsSync(adaptersDir)) continue;
     for (const file of readdirSync(adaptersDir).sort()) {
-      const kind = adapterKind(file);
-      if (!kind) continue;
+      const at = `skills/${folder}/adapters/${file}`;
       const text = readFileSync(join(adaptersDir, file), 'utf8');
-      findings.push(...checkAdapterTemplate(`skills/${folder}/adapters/${file}`, kind, text));
+      const first = firstCopy.get(file);
+      if (!first) firstCopy.set(file, { at, text });
+      else if (first.text !== text) findings.push(`${at}: differs from its copy in ${first.at}`);
+      const kind = adapterKind(file);
+      if (kind) findings.push(...checkAdapterTemplate(at, kind, text));
     }
   }
   return findings;

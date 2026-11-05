@@ -337,6 +337,29 @@ test('a checks template missing a check level is reported', () => {
   assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/checks\.md: .*"task"/);
 });
 
+// A skill installed through `npx skills` reads only its own folder, so a
+// skill that needs another skill's adapter template carries a copy of it in
+// its own `adapters/` folder, as aw-wayfinder carries aw-setup's local-markdown
+// tracker. Every copy of a template must match the others byte for byte.
+
+test('an adapter template whose copy in another skill differs is reported', () => {
+  const kit = kitWithTemplate('tracker-local.md', adapterTemplate('Tracker: local markdown', TRACKER_ROWS));
+  kit['skills/aw-alpha/adapters/tracker-local.md'] = adapterTemplate('Tracker: local files', TRACKER_ROWS);
+
+  assertOneFinding(
+    runOn(kit),
+    /^skills\/aw-beta\/adapters\/tracker-local\.md: differs from its copy in skills\/aw-alpha\/adapters\/tracker-local\.md/,
+  );
+});
+
+test('adapter templates copied unchanged into another skill pass', () => {
+  const template = adapterTemplate('Tracker: local markdown', TRACKER_ROWS);
+  const kit = kitWithTemplate('tracker-local.md', template);
+  kit['skills/aw-alpha/adapters/tracker-local.md'] = template;
+
+  assertNoFindings(runOn(kit));
+});
+
 // The never-allowed operations are stated in full in the `## Never allowed`
 // section of docs/configuration.md. A file under `skills/` that carries its
 // own restatement, such as a VCS adapter template, must match it, up to
