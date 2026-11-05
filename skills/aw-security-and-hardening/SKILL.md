@@ -7,13 +7,23 @@ description: Hardens code against vulnerabilities. Use when auditing an input ha
 
 ## Overview
 
-Security-first development practices for web applications. Treat every external input as hostile, every secret as sacred, and every authorization check as mandatory. Security isn't a phase — it's a constraint on every line of code that touches user data, authentication, or external systems.
+Security-first development practices for any repo, CLIs included. Treat every external input as hostile, every secret as sacred, and every authorization check as mandatory. Security isn't a phase — it's a constraint on every line of code that touches user data, authentication, or external systems.
+
+Security here means what `aw-review`'s Security axis judges: trust boundaries, secrets, dependencies and personal data. The controls for trust boundaries, secrets, dependencies and destructive operations apply in any repo. Controls tagged **(web)** apply when the change touches web code, that is, anything served over HTTP or rendered in a browser; headers, CORS and cookies are the typical ones.
+
+## In the Kit
+
+This skill is phase-free: it is the guidance `aw-review` hands to its Security axis, and it also serves any task that touches what it covers.
+
+During a review, findings follow `aw-review`'s Findings rules: an unchecked checklist item or a red flag is a risk unless a run proves a defect.
 
 ## When to Use
 
 - Building anything that accepts user input
 - Implementing authentication or authorization
 - Storing or transmitting sensitive data
+- Handling secrets
+- Adding or upgrading a dependency
 - Integrating with external APIs or services
 - Adding file uploads, webhooks, or callbacks
 - Handling payment or PII data
@@ -43,23 +53,25 @@ If you can't name the trust boundaries for a feature, you're not ready to secure
 
 ### Always Do (No Exceptions)
 
-- **Validate all external input** at the system boundary (API routes, form handlers)
+- **Validate all external input** at the system boundary (API routes, form handlers, CLI arguments)
 - **Parameterize all database queries** — never concatenate user input into SQL
-- **Encode output** to prevent XSS (use framework auto-escaping, don't bypass it)
+- **Encode output** to prevent XSS (use framework auto-escaping, don't bypass it) **(web)**
 - **Use HTTPS** for all external communication
 - **Hash passwords** with bcrypt/scrypt/argon2 (never store plaintext)
-- **Set security headers** (CSP, HSTS, X-Frame-Options, X-Content-Type-Options)
-- **Use httpOnly, secure, sameSite cookies** for sessions
-- **Run the detected package manager's native audit** against the committed lockfile before every release
+- **Set security headers** (CSP, HSTS, X-Frame-Options, X-Content-Type-Options) **(web)**
+- **Use httpOnly, secure, sameSite cookies** for sessions **(web)**
+- **Run the detected package manager's native audit** against the committed lockfile (see Dependencies and supply chain)
 
-### Ask First (Requires Human Approval)
+### Ask First
+
+Spec approval is the kit's only fixed human gate (ADR 0013), and this list adds none. On a route with a spec, the items a change reaches belong in the spec's Boundaries section, under Ask first. Without a spec, a task that reaches one is not fast-route work and goes back to `/aw-intake`.
 
 - Adding new authentication flows or changing auth logic
 - Storing new categories of sensitive data (PII, payment info)
 - Adding new external service integrations
-- Changing CORS configuration
-- Adding file upload handlers
-- Modifying rate limiting or throttling
+- Changing CORS configuration **(web)**
+- Adding file upload handlers **(web)**
+- Modifying rate limiting or throttling **(web)**
 - Granting elevated permissions or roles
 
 ### Never Do
@@ -67,9 +79,9 @@ If you can't name the trust boundaries for a feature, you're not ready to secure
 - **Never commit secrets** to version control (API keys, passwords, tokens)
 - **Never log sensitive data** (passwords, tokens, full credit card numbers)
 - **Never trust client-side validation** as a security boundary
-- **Never disable security headers** for convenience
+- **Never disable security headers** for convenience **(web)**
 - **Never use `eval()` or `innerHTML`** with user-provided data
-- **Never store sessions in client-accessible storage** (localStorage for auth tokens)
+- **Never store sessions in client-accessible storage** (localStorage for auth tokens) **(web)**
 - **Never expose stack traces** or internal error details to users
 
 ## Hardening Controls
@@ -79,7 +91,7 @@ The rules below are the workflow; a concrete implementation of each lives in [re
 ### Injection, XSS, and access control
 
 - Parameterize every query. Never build SQL, NoSQL, or shell commands from input strings.
-- Encode output through the framework's auto-escaping. If raw HTML is unavoidable, sanitize with an allowlist sanitizer first.
+- Encode output through the framework's auto-escaping. If raw HTML is unavoidable, sanitize with an allowlist sanitizer first. **(web)**
 - Check **authorization** on every request, not just authentication: the authenticated user must own, or be permitted on, the specific resource (A01, IDOR).
 
 Patterns: [Injection](references/hardening-patterns.md#injection), [XSS](references/hardening-patterns.md#cross-site-scripting-xss), [Access control](references/hardening-patterns.md#broken-access-control).
@@ -87,14 +99,14 @@ Patterns: [Injection](references/hardening-patterns.md#injection), [XSS](referen
 ### Authentication and sessions
 
 - Hash passwords with bcrypt (≥12 rounds), scrypt, or argon2. The session secret comes from the environment, never from code.
-- Session cookies are `httpOnly`, `secure`, and `sameSite: 'lax'` or `'strict'` (the CSRF defense; `'none'` sends the cookie on cross-site requests), with a bounded `maxAge`.
+- Session cookies are `httpOnly`, `secure`, and `sameSite: 'lax'` or `'strict'` (the CSRF defense; `'none'` sends the cookie on cross-site requests), with a bounded `maxAge`. **(web)**
 
 Pattern: [Authentication](references/hardening-patterns.md#broken-authentication).
 
 ### Headers, CORS, and responses
 
-- Security headers on every response (helmet or the framework equivalent); CSP starts from `default-src 'self'` and is tightened, not loosened.
-- CORS restricted to an explicit origin list from configuration. Never `*` with credentials.
+- Security headers on every response (helmet or the framework equivalent); CSP starts from `default-src 'self'` and is tightened, not loosened. **(web)**
+- CORS restricted to an explicit origin list from configuration. Never `*` with credentials. **(web)**
 - Strip sensitive fields (`passwordHash`, reset tokens) before any response. Error bodies are generic; internals go to server logs only.
 
 Patterns: [Misconfiguration](references/hardening-patterns.md#security-misconfiguration), [Sensitive data exposure](references/hardening-patterns.md#sensitive-data-exposure).
@@ -102,7 +114,7 @@ Patterns: [Misconfiguration](references/hardening-patterns.md#security-misconfig
 ### Input validation and uploads
 
 - Validate at the boundary with a schema: allowlisted shape, lengths, enums, formats. Reject with 422 and structured details; downstream code uses only the parsed, typed value.
-- Uploads: allowlist MIME types, cap size, verify content (magic bytes) when it matters. The extension proves nothing.
+- Uploads: allowlist MIME types, cap size, verify content (magic bytes) when it matters. The extension proves nothing. **(web)**
 
 Patterns: [Schema validation](references/hardening-patterns.md#schema-validation-at-boundaries), [File upload](references/hardening-patterns.md#file-upload-safety).
 
@@ -120,7 +132,7 @@ Why the check is weaker than it reads (marker self-attestation, check/use races)
 
 ### Rate limiting
 
-Limit the API generally and auth endpoints strictly (about 10 attempts per 15 minutes). Once more than one process serves traffic, in-memory counters silently become `max × instances`, or never fire on serverless: back the limiter with a shared store.
+Limit the API generally and auth endpoints strictly (about 10 attempts per 15 minutes). Once more than one process serves traffic, in-memory counters silently become `max × instances`, or never fire on serverless: back the limiter with a shared store. **(web)**
 
 Pattern: [Rate limiting](references/hardening-patterns.md#rate-limiting).
 
@@ -134,7 +146,7 @@ Pattern: [Secrets management](references/hardening-patterns.md#secrets-managemen
 
 1. **Find the installation boundary and manager.** Use the workspace root that owns the lockfile, or an independent nested project only when it is outside that workspace. Corroborate `packageManager` (when present), the lockfile, and CI; stop on disagreement or competing lockfiles. Pin the manager version.
 2. **Block dependency scripts before first execution.** Bootstrap with scripts disabled or a documented fail-closed policy, inspect the pending script source, approve only the minimum, commit the policy, then verify with a clean frozen/immutable install. Never blanket-approve.
-3. **Run the native audit against the committed lockfile before every release.** Triage critical/high by **reachability** (runtime, build, test, deploy paths) and fix availability. Never apply forced remediation (`npm audit fix --force` or equivalent) automatically, since forced fixes may cross declared dependency ranges; preview, read changelogs, test each upgrade. Document every deferral with a reason and a review date.
+3. **Run the native audit against the committed lockfile, as a run on `aw-review`'s Security axis or in a check level the repo configures.** That adds no phase and no hook (ADR 0009). Triage critical/high by **reachability** (runtime, build, test, deploy paths) and fix availability. Never apply forced remediation (`npm audit fix --force` or equivalent) automatically, since forced fixes may cross declared dependency ranges; preview, read changelogs, test each upgrade. Document every deferral with a reason and a review date.
 4. **Audits only match known advisories.** They do not catch a newly malicious or typosquatted package (`cross-env` vs `crossenv`). Review new dependencies, lockfile diffs, and script-policy changes together: ownership, maintenance, release age, provenance, transitive graph. Verify registry signatures where supported (`npm audit signatures`, `pnpm audit signatures`) and treat their absence as a signal to investigate, not automatic proof of compromise (A06, LLM03).
 
 Triage decision tree: [Dependency audit triage](references/hardening-patterns.md#dependency-audit-triage). Manager matrix and install-script gate: `references/security-checklist.md`.
@@ -163,7 +175,7 @@ Pattern: [LLM output handling](references/hardening-patterns.md#llm-output-handl
 
 ## Review Checklist
 
-Before sign-off, walk `references/security-checklist.md`: it covers authentication, authorization, input, data protection and privacy, headers and CORS, dependencies and supply chain, AI/LLM, and error handling, plus the OWASP quick-reference tables.
+Walk `references/security-checklist.md` against the trust boundaries the change touches: it covers authentication, authorization, input, data protection and privacy, headers and CORS, dependencies and supply chain, AI/LLM, and error handling, plus the OWASP quick-reference tables. It is worded for web applications; in other code, take the items that bear on those boundaries.
 
 ## Common Rationalizations
 
@@ -187,8 +199,8 @@ Before sign-off, walk `references/security-checklist.md`: it covers authenticati
 - A delete, move, or overwrite whose target comes from a payload, a config value, or another process's command line, guarded only by a shape check on the path
 - Secrets in source code or commit history
 - API endpoints without authentication or authorization checks
-- Missing CORS configuration or wildcard (`*`) origins
-- No rate limiting on authentication endpoints, or an in-memory limiter in front of more than one instance
+- Missing CORS configuration or wildcard (`*`) origins **(web)**
+- No rate limiting on authentication endpoints, or an in-memory limiter in front of more than one instance **(web)**
 - Stack traces or internal errors exposed to users
 - Dependencies with known critical vulnerabilities, competing lockfiles at one installation boundary, non-reproducible installs, or blanket-approved scripts
 - Server fetches user-supplied URLs without an allowlist (SSRF)
@@ -198,7 +210,7 @@ Before sign-off, walk `references/security-checklist.md`: it covers authenticati
 - PII sent to analytics/ad/LLM vendors with no consent or data-processing agreement
 - "Delete my account" that only flips a flag while the personal data lingers in stores and backups
 
-## Verification
+## Self-Check
 
 After implementing security-relevant code:
 
@@ -207,9 +219,9 @@ After implementing security-relevant code:
 - [ ] All user input validated at system boundaries
 - [ ] Destructive filesystem operations resolve symlinks, then verify allowlisted root, minimum depth, and ownership before running
 - [ ] Authentication and authorization checked on every protected endpoint
-- [ ] Security headers present in response (check with browser DevTools)
+- [ ] Security headers present in response, shown by a request to the running app **(web)**
 - [ ] Error responses don't expose internal details
-- [ ] Rate limiting active on auth endpoints, backed by a shared store when more than one instance serves traffic
+- [ ] Rate limiting active on auth endpoints, backed by a shared store when more than one instance serves traffic **(web)**
 - [ ] Server-side URL fetches validated against an allowlist (no SSRF)
 - [ ] LLM/model output validated and encoded before use (if AI features present)
 - [ ] Personal data is classified, minimized to a stated purpose, and has a retention limit
