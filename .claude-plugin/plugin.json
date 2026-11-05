@@ -35,6 +35,8 @@
     "./skills/aw-intake",
     "./skills/aw-spec",
     "./skills/aw-slices",
-    "./skills/aw-build"
+    "./skills/aw-build",
+    "./skills/aw-create-verify",
+    "./skills/aw-verify"
   ]
 }

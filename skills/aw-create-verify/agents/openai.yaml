@@ -1,0 +1,5 @@
+interface:
+  display_name: "Create verify"
+  short_description: "Write and run the repo's verify skill"
+policy:
+  allow_implicit_invocation: false
