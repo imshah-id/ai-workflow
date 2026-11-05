@@ -13,7 +13,7 @@ How kit skills find a repo's configuration, what they may do with it, and what t
 | `### Checks` | `checks.md` | The command for each check level |
 | `### Domain docs` | `domain.md` | Where the glossary and ADRs live |
 
-The templates are in `skills/aw-setup/adapters/`. `node scripts/validate-kit.mjs` fails when one of them misses a canonical operation, names one outside the vocabulary, or gives one an impossible access level.
+The templates are in `skills/aw-setup/adapters/`. `node scripts/validate-kit.mjs` fails when one of them misses a canonical operation, names one outside the vocabulary, or gives one an impossible access level. It also fails when a file under `skills/` has a `## Never allowed` section whose text differs from this page's, which is the source.
 
 ## Canonical operations
 
@@ -29,7 +29,11 @@ A skill requests these by name and does what the adapter's Operations table says
 - A write operation at `write` is performed by the agent.
 - A write operation at `draft` is not performed. The agent writes the exact command or text to `.aw/drafts/<yyyymmdd-hhmmss>-<operation>.md`, tells the user the path, and goes on.
 - `merge` at `write` is still conditional: only when `aw-review` found no proven defect and the `full` level passed (ADR 0013).
-- Force-pushing, deleting branches, pushing directly to a protected branch and `--no-verify` are never allowed, whatever an adapter says.
+- Some operations are never allowed, whatever an adapter says: see [Never allowed](#never-allowed).
+
+## Never allowed
+
+Whatever the access levels say, the agent never force-pushes (`--force`, `--force-with-lease`, a `+` refspec), never deletes a branch, local or remote, never pushes directly to a protected branch, and never passes `--no-verify`. These are not configurable.
 
 ## Defaults when unconfigured
 

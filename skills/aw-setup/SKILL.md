@@ -22,7 +22,7 @@ The canonical operations are a closed vocabulary. Every adapter template in [`ad
 - **VCS:** `diff-base` (read); `start-branch`, `commit`, `push`, `open-review`, `merge` (write).
 - **Checks:** `run-check <level>` (read), for the levels `fast`, `task` and `full`.
 
-**Access levels.** A read operation is always allowed and is marked `read`. A write operation is at `write`, where the agent performs it, or `draft`, where the agent writes the exact command or text to `.aw/drafts/` and a person applies it. Each tracker and VCS adapter has a **Default access** line set to `write` or `draft`, and its Access column holds each operation's effective level; a row that differs from the default is an override. Force-pushing, deleting branches, pushing directly to a protected branch and `--no-verify` are never allowed, and no level or override changes that.
+**Access levels.** A read operation is always allowed and is marked `read`. A write operation is at `write`, where the agent performs it, or `draft`, where the agent writes the exact command or text to `.aw/drafts/` and a person applies it. Each tracker and VCS adapter has a **Default access** line set to `write` or `draft`, and its Access column holds each operation's effective level; a row that differs from the default is an override. The operations in the `## Never allowed` section of each VCS template in [`adapters/`](adapters/) are never allowed, and no level or override changes that.
 
 ## Steps
 
