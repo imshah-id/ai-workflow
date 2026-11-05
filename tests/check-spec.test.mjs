@@ -34,7 +34,7 @@ function sections() {
     'Out of scope': 'Password reset.\n',
     Boundaries: '### Always\n\nRun the tests.\n\n### Ask first\n\nNew dependencies.\n\n### Never\n\nLog passwords.\n',
     Design: 'A form posts to `/session`.\n',
-    'Slice plan': '1. Sign-in form (AC-1, AC-2, AC-3). AFK.\n',
+    'Slice plan': '1. [x] Sign-in form (AC-1, AC-2, AC-3). AFK.\n',
     'Test strategy': 'Seam: the HTTP endpoint.\n',
     Traceability:
       '| Acceptance criterion | Evidence |\n| --- | --- |\n' +
@@ -376,27 +376,28 @@ test('a draft as aw-spec writes it, before slices and tests exist, passes', () =
   assertNoFindings(runOn({ [SPEC]: specText({ frontmatter: 'status: draft\n', parts }) }));
 });
 
-// The approved spec in the shape aw-slices writes it: numbered slices with
-// their criteria, AFK or HITL, sub-items for what each delivers, its blockers
-// and its mirror ticket; the agreed seams in Test strategy; and planned
-// evidence whose files do not exist yet. The check has no rules on the slice
-// plan's content, so this pins only that the shape raises no finding.
+// The approved spec in the shape aw-slices writes it: numbered slices, each
+// with its done marker unset, its criteria, AFK or HITL, and sub-items for
+// what it delivers, its blockers and its mirror ticket; the agreed seams in
+// Test strategy; and planned evidence whose files do not exist yet. The check
+// has no rules on the slice plan's content, so this pins only that the shape
+// raises no finding.
 test('an approved spec with the slice plan and Test strategy aw-slices writes passes', () => {
   const parts = sections();
   parts['Slice plan'] =
-    '1. Lockout rule (AC-3). HITL.\n' +
+    '1. [ ] Lockout rule (AC-3). HITL.\n' +
     '   - Delivers: a locked account is refused and offered support, end to end.\n' +
     '   - Blocked by: none.\n' +
     '   - Mirror: #13\n' +
-    '2. Expand: session token beside the cookie (AC-1). AFK.\n' +
+    '2. [ ] Expand: session token beside the cookie (AC-1). AFK.\n' +
     '   - Delivers: a registered user signs in and reaches the dashboard.\n' +
     '   - Blocked by: 1.\n' +
     '   - Mirror: #14\n' +
-    '3. Migrate: the error page reads the token (AC-2). AFK.\n' +
+    '3. [ ] Migrate: the error page reads the token (AC-2). AFK.\n' +
     '   - Delivers: a wrong password shows an error, read from the token.\n' +
     '   - Blocked by: 2.\n' +
     '   - Mirror: #15\n' +
-    '4. Contract: drop the cookie (AC-1). AFK.\n' +
+    '4. [ ] Contract: drop the cookie (AC-1). AFK.\n' +
     '   - Delivers: a registered user still reaches the dashboard; no caller reads the cookie.\n' +
     '   - Blocked by: 3.\n' +
     '   - Mirror: #16\n';
@@ -404,6 +405,31 @@ test('an approved spec with the slice plan and Test strategy aw-slices writes pa
     'Agreed with the user:\n\n' +
     '- **The HTTP endpoint** (`POST /session`): catches AC-1 and AC-2; misses the rendered page.\n' +
     '- AC-3 is proven by `manual:` evidence: the support flow needs a staff account.\n';
+
+  assertNoFindings(runOn({ [SPEC]: specText({ frontmatter: 'status: approved\nticket: "#12"\n', parts }) }));
+});
+
+// The spec as aw-build leaves it after building one slice: that slice ticked,
+// with the test exception it recorded; the later slices still unticked;
+// Traceability pointing at the test the slice added and at the verify
+// evidence its exception relies on, neither of which need exist before
+// implemented. This pins that aw-check-spec passes after each slice.
+test('an approved spec with one slice ticked and a test exception, as aw-build leaves it, passes', () => {
+  const parts = sections();
+  parts['Slice plan'] =
+    '1. [x] Sign-in form (AC-1, AC-2). AFK.\n' +
+    '   - Delivers: a registered user reaches the dashboard; a wrong password shows an error.\n' +
+    '   - Blocked by: none.\n' +
+    '   - Test exception: AC-2. The error page renders only in a browser the suite cannot drive; ' +
+    'proven by `verify:` evidence instead.\n' +
+    '2. [ ] Lockout rule (AC-3). HITL.\n' +
+    '   - Delivers: a locked account is refused and offered support.\n' +
+    '   - Blocked by: 1.\n';
+  parts.Traceability =
+    '| Acceptance criterion | Evidence |\n| --- | --- |\n' +
+    '| AC-1 | test: `tests/session.test.mjs` |\n' +
+    '| AC-2 | verify: `docs/specs/login/verify/ac-2.md` |\n' +
+    '| AC-3 | manual: support flow needs a staff account we cannot script |\n';
 
   assertNoFindings(runOn({ [SPEC]: specText({ frontmatter: 'status: approved\nticket: "#12"\n', parts }) }));
 });

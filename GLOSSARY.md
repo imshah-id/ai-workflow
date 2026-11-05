@@ -114,6 +114,14 @@ _Avoid_: manual slice, human task
 The sequence of slices for a wide refactor, one mechanical change too wide for any vertical slice of it to land green: expand adds the new form beside the old, migrate moves the callers over in batches, and contract removes the old form once no caller is left.
 _Avoid_: parallel change, phased migration
 
+**Done marker**:
+The checkbox that opens each slice in the slice plan: `[ ]` until `aw-build` builds the slice, `[x]` once it has. A slice is done when its marker is ticked.
+_Avoid_: status line, done flag
+
+**Test exception**:
+A criterion of a slice that `aw-build` proves by verify evidence instead of a test, because a test at the agreed seam would cost far more than it is worth. It is recorded in the slice, with its reason.
+_Avoid_: skipped test, test waiver
+
 **Mirror ticket**:
 A ticket published from a slice so that the tracker can follow it. The slice stays the source of truth.
 _Avoid_: sub-issue, child ticket

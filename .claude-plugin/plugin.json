@@ -34,6 +34,7 @@
     "./skills/aw-setup",
     "./skills/aw-intake",
     "./skills/aw-spec",
-    "./skills/aw-slices"
+    "./skills/aw-slices",
+    "./skills/aw-build"
   ]
 }
