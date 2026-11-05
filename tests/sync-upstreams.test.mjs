@@ -580,6 +580,24 @@ function uninstalledKit(files, edit) {
   return { dir, upstream };
 }
 
+// The upstream files with `alpha` referring to the uncopied `gamma` in every form.
+function upstreamReferringToGamma() {
+  return { ...upstreamFiles(), 'skills/group/alpha/SKILL.md': ALPHA_WITH_REPLACED };
+}
+
+// The lines of an install's error that name a reference.
+const referenceLines = (stderr) => stderr.split('\n').filter((line) => line.startsWith('skills/'));
+
+// Commits `files` to the upstream and moves the kit's pin to that commit.
+function movePin(dir, upstream, files) {
+  writeFiles(upstream.dir, files);
+  git(upstream.dir, 'add', '--all');
+  git(upstream.dir, 'commit', '--quiet', '-m', 'bump');
+  const manifest = JSON.parse(read(dir, 'upstreams.json'));
+  manifest.upstreams.fixture.commit = git(upstream.dir, 'rev-parse', 'HEAD');
+  write(dir, 'upstreams.json', json(manifest));
+}
+
 // The upstream files with `alpha` holding `text` as its body.
 function upstreamWithAlpha(text) {
   return {
@@ -589,31 +607,23 @@ function upstreamWithAlpha(text) {
 }
 
 test('install fails on a reference to an uncopied, unreplaced upstream skill, naming each one and how to resolve it', () => {
-  const files = upstreamFiles();
-  files['skills/group/alpha/SKILL.md'] = ALPHA_WITH_REPLACED;
-  const { dir } = uninstalledKit(files);
+  const { dir } = uninstalledKit(upstreamReferringToGamma());
 
   const { status, stderr } = sync('install', dir);
 
   assert.equal(status, 1);
-  const lines = stderr.split('\n');
-  assert.deepEqual(
-    lines.filter((line) => line.startsWith('skills/')),
-    [
-      'skills/aw-alpha/SKILL.md:6: "gamma"',
-      'skills/aw-alpha/SKILL.md:7: `gamma` skill',
-      'skills/aw-alpha/SKILL.md:7: /gamma',
-      'skills/aw-alpha/SKILL.md:8: [`gamma`]',
-    ],
-  );
+  assert.deepEqual(referenceLines(stderr), [
+    'skills/aw-alpha/SKILL.md:6: "gamma"',
+    'skills/aw-alpha/SKILL.md:7: `gamma` skill',
+    'skills/aw-alpha/SKILL.md:7: /gamma',
+    'skills/aw-alpha/SKILL.md:8: [`gamma`]',
+  ]);
   assert.match(stderr, /copy the skill/);
   assert.match(stderr, /"replaced"/);
 });
 
-test('install succeeds when the sibling a copy refers to is under replaced', () => {
-  const files = upstreamFiles();
-  files['skills/group/alpha/SKILL.md'] = ALPHA_WITH_REPLACED;
-  const { dir } = uninstalledKit(files, (kit) => {
+test('install succeeds when the skill a copy refers to is under replaced', () => {
+  const { dir } = uninstalledKit(upstreamReferringToGamma(), (kit) => {
     kit['upstreams.json'].upstreams.fixture.replaced = { gamma: 'aw-omega' };
   });
 
@@ -622,10 +632,8 @@ test('install succeeds when the sibling a copy refers to is under replaced', () 
   assert.equal(status, 0, stderr);
 });
 
-test('install succeeds when the sibling a copy refers to is copied', () => {
-  const files = upstreamFiles();
-  files['skills/group/alpha/SKILL.md'] = ALPHA_WITH_REPLACED;
-  const { dir } = uninstalledKit(files, (kit) => {
+test('install succeeds when the skill a copy refers to is copied', () => {
+  const { dir } = uninstalledKit(upstreamReferringToGamma(), (kit) => {
     kit['upstreams.json'].upstreams.fixture.skills.gamma = 'skills/group/gamma';
   });
 
@@ -659,10 +667,7 @@ test('install reads the skill names from name: in the frontmatter, not from the 
   const { status, stderr } = sync('install', dir);
 
   assert.equal(status, 1);
-  assert.deepEqual(
-    stderr.split('\n').filter((line) => line.startsWith('skills/')),
-    ['skills/aw-alpha/SKILL.md:6: "zeta"'],
-  );
+  assert.deepEqual(referenceLines(stderr), ['skills/aw-alpha/SKILL.md:6: "zeta"']);
 });
 
 test('install checks a copy against the skill names of its own upstream only', () => {
@@ -701,10 +706,7 @@ test('a replaced skill covers references from copies of its own upstream only', 
   const { status, stderr } = sync('install', dir);
 
   assert.equal(status, 1);
-  assert.deepEqual(
-    stderr.split('\n').filter((line) => line.startsWith('skills/')),
-    ['skills/aw-delta/SKILL.md:6: "gamma"'],
-  );
+  assert.deepEqual(referenceLines(stderr), ['skills/aw-delta/SKILL.md:6: "gamma"']);
 });
 
 test('install is not stopped by a symlink elsewhere in the upstream tree', () => {
@@ -736,12 +738,7 @@ test('a failed install leaves the copies and the lock of an installed kit as the
     beta: read(dir, 'skills/aw-beta/SKILL.md'),
     lock: read(dir, 'upstreams.lock.json'),
   };
-  writeFiles(upstream.dir, { 'skills/group/beta/SKILL.md': '---\nname: beta\ndescription: Now refers to gamma.\n---\n\nCall "gamma".\n' });
-  git(upstream.dir, 'add', '--all');
-  git(upstream.dir, 'commit', '--quiet', '-m', 'bump');
-  const manifest = JSON.parse(read(dir, 'upstreams.json'));
-  manifest.upstreams.fixture.commit = git(upstream.dir, 'rev-parse', 'HEAD');
-  write(dir, 'upstreams.json', json(manifest));
+  movePin(dir, upstream, { 'skills/group/beta/SKILL.md': '---\nname: beta\ndescription: Now refers to gamma.\n---\n\nCall "gamma".\n' });
 
   const { status } = sync('install', dir);
 
@@ -758,11 +755,8 @@ test('a failed install leaves the copies and the lock of an installed kit as the
 
 test('a failed install keeps a copy dropped from the manifest', () => {
   const { dir, upstream } = installedKit();
-  writeFiles(upstream.dir, { 'skills/group/alpha/SKILL.md': '---\nname: alpha\ndescription: Now refers to gamma.\n---\n\nCall "gamma".\n' });
-  git(upstream.dir, 'add', '--all');
-  git(upstream.dir, 'commit', '--quiet', '-m', 'bump');
+  movePin(dir, upstream, { 'skills/group/alpha/SKILL.md': '---\nname: alpha\ndescription: Now refers to gamma.\n---\n\nCall "gamma".\n' });
   const manifest = JSON.parse(read(dir, 'upstreams.json'));
-  manifest.upstreams.fixture.commit = git(upstream.dir, 'rev-parse', 'HEAD');
   delete manifest.upstreams.fixture.skills.beta;
   write(dir, 'upstreams.json', json(manifest));
 

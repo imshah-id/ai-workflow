@@ -691,17 +691,17 @@ function writeFile(path, bytes) {
 
 // One upstream file of a copy with the mechanical transform applied: what the
 // copy holds, the uses of a copied or replaced name the transform left alone,
-// and the references to one of `uncopied` it still holds. Throws when the
+// and the references to one of `unresolved` it still holds. Throws when the
 // transform cannot be undone on the file, since `check` could then never
 // verify the copy.
-function transformFile(path, bytes, file, transform, uncopied) {
+function transformFile(path, bytes, file, transform, unresolved) {
   const text = asText(bytes);
   if (text === null) return { content: bytes, leftAlone: [], dangling: [] };
   const content = transform.apply(text, file);
   if (transform.undo(content, file) !== text) {
     throw new SyncError(`${path}: the mechanical transform cannot be undone on this file, so check could not verify it`);
   }
-  return { content, leftAlone: transform.leftAlone(content), dangling: findReferences(content, uncopied) };
+  return { content, leftAlone: transform.leftAlone(content), dangling: findReferences(content, unresolved) };
 }
 
 // Installs every copy at its pin, applies the mechanical transform, adds
@@ -729,7 +729,7 @@ export function install(dir) {
         throw new SyncError(`upstream "${upstream.key}" has no ${upstream.license} at ${upstream.commit}`);
       }
       const license = readBlob(gitDir, licenseBlob);
-      const uncopied = upstreamSkillNames(gitDir, upstream.commit).filter((name) => !names.includes(name) && !(name in upstream.replaced));
+      const unresolved = upstreamSkillNames(gitDir, upstream.commit).filter((name) => !names.includes(name) && !(name in upstream.replaced));
       const lockedSkills = {};
       for (const copy of upstream.skills) {
         const tree = objectAt(gitDir, upstream.commit, copy.path);
@@ -740,7 +740,7 @@ export function install(dir) {
         const transform = transformFor(copy, names);
         const planFile = (file, bytes) => {
           const path = `${at}/${file}`;
-          const planned = transformFile(path, bytes, file, transform, uncopied);
+          const planned = transformFile(path, bytes, file, transform, unresolved);
           writes.push({ path, content: planned.content });
           lines.push(...planned.leftAlone.map(({ line, mention }) => `${path}:${line}: left alone: ${mention}`));
           dangling.push(...planned.dangling.map(({ line, mention }) => `${path}:${line}: ${mention}`));

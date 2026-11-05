@@ -214,3 +214,7 @@ After implementing security-relevant code:
 - [ ] LLM/model output validated and encoded before use (if AI features present)
 - [ ] Personal data is classified, minimized to a stated purpose, and has a retention limit
 - [ ] Deletion and export requests work end-to-end (including backups, caches, and analytics copies)
+
+## Credits
+
+Adapted from Addy Osmani's `security-and-hardening` (MIT), as listed in the kit's `NOTICE.md`.

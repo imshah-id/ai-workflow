@@ -8,7 +8,7 @@
 //            when a copy refers to a skill of its upstream that the kit
 //            neither copies nor replaces. Needs the network unless every
 //            upstream is a local directory.
-//   check   verifies offline that each copy equals its upstream at the pin
+//   check    verifies offline that each copy equals its upstream at the pin
 //            plus the mechanical transform, against upstreams.lock.json.
 //            Prints one finding per line as `<path>: <message>`.
 //   report   lists what changed upstream since each pin. Needs the network
