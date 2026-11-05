@@ -81,7 +81,9 @@ function checkSpec(dir, slug) {
 // One evidence entry per part of a cell, as { kind, value } with backticks
 // dropped from the value. Entries are separated by `;` or `<br>` followed by
 // the next kind, so a manual reason may itself hold a `;`. A part with no
-// known kind keeps its whole text as the value and a null kind.
+// known kind keeps its whole text as the value and a null kind. A `verify:`
+// entry's value is its path, and its verify result is in `result`, or null
+// when it records none, such as the planned folder aw-build writes.
 function evidenceEntries(cell) {
   return cell
     .split(/(?:;|<br\s*\/?>)\s*(?=(?:test|verify|manual):)/i)
@@ -89,9 +91,9 @@ function evidenceEntries(cell) {
     .filter(Boolean)
     .map((part) => {
       const match = part.match(/^(test|verify|manual):\s*(.*)$/);
-      return match
-        ? { kind: match[1], value: match[2].replace(/`/g, '').trim() }
-        : { kind: null, value: part };
+      if (!match) return { kind: null, value: part };
+      const value = match[2].replace(/`/g, '').trim();
+      return match[1] === 'verify' ? { kind: 'verify', ...verifyEntry(value) } : { kind: match[1], value };
     });
 }
 
@@ -102,11 +104,10 @@ const repoPath = (dir, path) => join(dir, ...path.split(/[\\/]+/));
 // `verify: <path> (passed)`. It is not part of the path.
 const VERIFY_RESULT_SUFFIX = /\s+\((passed|failed|inconclusive)\)$/;
 
-// A `verify:` entry's path and its recorded result, or a null result when the
-// entry records none, such as the planned folder aw-build writes.
-function verifyEntry(value) {
-  const result = value.match(VERIFY_RESULT_SUFFIX)?.[1] ?? null;
-  return { path: value.replace(VERIFY_RESULT_SUFFIX, ''), result };
+// A `verify:` entry's path, as its value, and its recorded result.
+function verifyEntry(text) {
+  const result = text.match(VERIFY_RESULT_SUFFIX)?.[1] ?? null;
+  return { value: text.replace(VERIFY_RESULT_SUFFIX, ''), result };
 }
 
 // How each kind of evidence resolves: a finding message, or null when the
@@ -119,8 +120,7 @@ const RESOLVES = {
       ? null
       : `test file "${path}" does not mention ${id}`;
   },
-  verify(dir, id, value) {
-    const { path } = verifyEntry(value);
+  verify(dir, id, path) {
     return path && existsSync(repoPath(dir, path)) ? null : `verify path "${path}" does not exist`;
   },
   manual(dir, id, reason) {
@@ -144,16 +144,17 @@ function checkEvidence(dir, rows) {
   return findings;
 }
 
-// An implemented spec proves every criterion (#16): a failed verify result
-// shows the criterion is not met, and an inconclusive one shows nothing, so
-// it needs a test: or manual: entry in the same row.
+// An implemented spec proves every criterion: a failed verify result shows
+// the criterion is not met, and an inconclusive one shows nothing, so it
+// needs a test: or manual: entry in the same row.
 function checkVerifyResults(id, entries) {
-  const otherEvidence = entries.some(({ kind }) => kind === 'test' || kind === 'manual');
+  const hasOtherEvidence = entries.some(({ kind }) => kind === 'test' || kind === 'manual');
+  const verifyEntries = entries.filter(({ kind }) => kind === 'verify');
   const findings = [];
-  for (const { path, result } of entries.filter(({ kind }) => kind === 'verify').map(({ value }) => verifyEntry(value))) {
+  for (const { value: path, result } of verifyEntries) {
     if (result === 'failed') {
       findings.push(`${id}: verify result "${path}" failed; an implemented spec cannot hold a failed criterion`);
-    } else if (result === 'inconclusive' && !otherEvidence) {
+    } else if (result === 'inconclusive' && !hasOtherEvidence) {
       findings.push(`${id}: verify result "${path}" is inconclusive; add test: or manual: evidence to the row`);
     }
   }

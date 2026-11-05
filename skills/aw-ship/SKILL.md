@@ -38,9 +38,10 @@ Whatever the access levels say, the agent never force-pushes (`--force`, `--forc
 At `merge: write`, merge only when all of these hold; otherwise leave the merge as a draft and say which condition failed:
 
 1. **No proven defect.** The latest review report, step 2's, says `Proven defects: 0 introduced, 0 pre-existing`. A pre-existing defect still blocks the merge by itself: the user may ship it, but a person merges.
-2. **`full` passed.** `run-check full` passed in this session, in step 3, on the commit the review covered, and the only commit after it is this skill's spec commit. A level with no command is not run, so it never counts as passed.
-3. **The spec is proven.** On the standard and epic routes, the spec is `implemented` and `aw-check-spec` reports no finding on it, script-verified: no Traceability row holds a `(failed)` result. On the fast route there is no spec, and this condition holds.
-4. **The review request exists.** With a review host, `push` and `open-review` were performed in step 6, not drafted: a person cannot read a review request that only exists as a draft.
+2. **`full` passed.** `run-check full` passed in this session, in step 3, on `HEAD` as it was then, and the only commit since is this skill's spec commit. A level with no command is not run, so it never counts as passed.
+3. **The spec is proven.** On the standard and epic routes, the spec is `implemented` and `aw-check-spec` passed on it, script-verified, in step 4 of this session. On the fast route there is no spec, and this condition holds.
+
+With a review host, there is nothing to merge until `push` and `open-review` were performed in step 6: when either was drafted, the merge is drafted too.
 
 The host may refuse the merge, for instance while required CI checks are pending or failing. Report its output, leave the merge as a draft, and never bypass the host with an admin or force option.
 
@@ -76,7 +77,7 @@ Done when you have the report's path, its counts, and its introduced risks, and 
 
 ### 3. Run the full check level
 
-Run `run-check full` on `HEAD`, the reviewed commit, from the repo root. Keep the exact command, its exit code and the tail of its output for the Evidence section.
+Run `run-check full` on `HEAD` from the repo root: the reviewed commit, or on a rerun its spec commit, which changes only the spec. Keep the exact command, its exit code and the tail of its output for the Evidence section.
 
 - **It fails:** stop. Report the failure with its output; push nothing. The user fixes it with `/aw-build`, then runs `/aw-review` and this skill again.
 - **The level has no command:** propose one from the project's manifest, as the checks adapter's defaults say, run it, and say it was proposed, not configured. When nothing can be run, `full` was not run: say so. Shipping may go on, but the merge conditions do not hold.
@@ -85,16 +86,13 @@ Done when `full` passed in this session, with its output kept, or you have said 
 
 ### 4. Set the spec to implemented
 
-Skip this step on the fast route, or when the spec is already `implemented` by this branch.
+Skip this step on the fast route. When this branch already set the spec to `implemented`, as on a rerun, skip the edit and the commit, but still run the check.
 
-A spec is `implemented` only when its evidence proves every criterion. Read its Traceability first, and refuse while:
+A spec is `implemented` only when its evidence proves every criterion, and `aw-check-spec` is what decides it: at `implemented` it resolves every evidence entry, and fails on a Traceability row with a `(failed)` verify result, or with an `(inconclusive)` one and no `test:` or `manual:` entry beside it.
 
-- any row holds a `verify:` result marked `(failed)`: the app does not meet that criterion. Name it; the user fixes it with `/aw-build`, then runs `/aw-verify` and `/aw-review` again;
-- any row holds a `verify:` result marked `(inconclusive)` and no `test:` or `manual:` entry beside it: the criterion is unproven. Tell the user it needs `test:` or `manual:` evidence, as `/aw-verify` reports.
+Edit the frontmatter's `status: approved` to `status: implemented`, and change nothing else in the spec. Call the Skill tool with "aw-check-spec" and run it on the repo.
 
-Then edit the frontmatter's `status: approved` to `status: implemented`, and change nothing else in the spec. Call the Skill tool with "aw-check-spec" and run it on the repo. The check at `implemented` resolves every evidence entry, and fails on the results above too.
-
-- **A finding on this spec:** set `status` back to `approved` and stop. Report the findings verbatim; fixing them is for `/aw-build`, `/aw-verify` or `/aw-spec`.
+- **A finding on this spec:** set `status` back to `approved` and stop; nothing ships. Report the findings verbatim. A failed criterion goes back to `/aw-build` for the slice that covers it, then `/aw-verify` and `/aw-review` again; an inconclusive one needs `test:` or `manual:` evidence, as `/aw-verify` reports; any other finding is for `/aw-spec`.
 - **`Result: not script-verified`:** Node is missing. Say so; the walk by reading found what it found. The spec may ship as `implemented`, but merge condition 3 does not hold, so a person merges.
 
 Use `commit` for the spec alone, in the VCS adapter's commit convention, such as `docs: set <slug> spec to implemented`. When a commit hook fails, fix what it reports and commit again; never pass `--no-verify`. At `draft`, write the draft and tell the user the path: the spec then does not ship with the change, so stop before step 6.
@@ -103,7 +101,7 @@ Done when the spec is `implemented` in a local commit on the work branch and the
 
 ### 5. Write the review request body
 
-Write the body to `.aw/drafts/<yyyymmdd-hhmmss>-review-request.md`. It is local state, never committed. Skip preambles, keep prose brief, and use the glossary's vocabulary. Every section is required:
+Write the body to `.aw/review-requests/<yyyymmdd-hhmmss>-review-request.md`. It is local state, never committed. Skip preambles, keep prose brief, and use the glossary's vocabulary. Every section is required:
 
 ```markdown
 ## Summary
@@ -164,7 +162,7 @@ Done when the body file holds every section, filled in.
 Each operation follows its access level in the VCS adapter:
 
 - **`push`:** the work branch to its remote, never a protected branch, never forced. At `draft`, write the exact command to `.aw/drafts/<yyyymmdd-hhmmss>-push.md`. When the push is rejected, stop and report it: rewriting the remote is never allowed.
-- **`open-review`:** with the review request's title in the commit convention and the body file from step 5. At `draft`, write the exact command and the whole body to `.aw/drafts/<yyyymmdd-hhmmss>-open-review.md`. When `push` was drafted, draft `open-review` too, whatever its access level, since the host has no branch to review yet, and say why. With no review host, the body is the review request: say so and give its path.
+- **`open-review`:** with the review request's title in the commit convention and the body file from step 5. At `draft`, write the exact command and the whole body to `.aw/drafts/<yyyymmdd-hhmmss>-open-review.md`. When `push` was drafted, draft `open-review` too, whatever its access level, since the host has no branch to review yet, and say why. With no review host, the body is the review request: do what the adapter's `open-review` row says, such as copying it to `.aw/drafts/<yyyymmdd-hhmmss>-open-review.md`, and give the user its path.
 
 At `write`, report the review request's URL or number.
 

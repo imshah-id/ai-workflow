@@ -28,7 +28,7 @@ A skill requests these by name and does what the adapter's Operations table says
 - A read operation is always allowed.
 - A write operation at `write` is performed by the agent.
 - A write operation at `draft` is not performed. The agent writes the exact command or text to `.aw/drafts/<yyyymmdd-hhmmss>-<operation>.md`, tells the user the path, and goes on.
-- `merge` at `write` is still conditional: only when `aw-review` found no proven defect and the `full` level passed (ADR 0013).
+- `merge` at `write` is still conditional: only when `aw-review` found no proven defect and the `full` level passed (ADR 0013), and, for a change with a spec, the spec is `implemented` and passes the script-verified spec check.
 - Some operations are never allowed, whatever an adapter says: see [Never allowed](#never-allowed).
 
 ## Never allowed

@@ -468,8 +468,8 @@ test('an implemented spec with the verify results aw-verify records passes', () 
   }));
 });
 
-// A spec ships as implemented only when its evidence proves every criterion
-// (#16): a failed verify result proves the criterion is not met, and an
+// A spec ships as implemented only when its evidence proves every criterion:
+// a failed verify result proves the criterion is not met, and an
 // inconclusive one proves nothing, so it needs a test: or manual: entry
 // beside it, as aw-verify reports.
 test('an implemented spec with a failed verify result is reported', () => {
@@ -485,4 +485,17 @@ test('an implemented spec with an inconclusive verify result and no other eviden
     runOn(repo),
     finding(/AC-2: verify result "docs\/specs\/login\/verify\/ac-2\.md" is inconclusive.*test: or manual:/),
   );
+});
+
+test('an inconclusive verify result beside a test: entry passes', () => {
+  const repo = withEvidence('AC-1', 'test: `tests/login.test.mjs`; verify: `docs/specs/login/verify/ac-1.md` (inconclusive)');
+  repo['docs/specs/login/verify/ac-1.md'] = '# AC-1: inconclusive\n';
+
+  assertNoFindings(runOn(repo));
+});
+
+// aw-verify records a failed result on an approved spec and runs the check,
+// which must pass so that the result can be committed.
+test('a failed verify result passes before implemented', () => {
+  assertNoFindings(runOn(withEvidence('AC-2', 'verify: `docs/specs/login/verify/ac-2.md` (failed)', 'approved')));
 });
