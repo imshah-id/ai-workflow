@@ -412,7 +412,7 @@ test('an approved spec with the slice plan and Test strategy aw-slices writes pa
 // The spec as aw-build leaves it after building one slice: that slice ticked,
 // with the test exception it recorded; the later slices still unticked;
 // Traceability pointing at the test the slice added and at the verify
-// evidence its exception relies on, neither of which need exist before
+// evidence its exception relies on, neither of which needs to exist before
 // implemented. This pins that aw-check-spec passes after each slice.
 test('an approved spec with one slice ticked and a test exception, as aw-build leaves it, passes', () => {
   const parts = sections();

@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Build **one slice** of an approved spec per call, on a work branch: test-first at the seams the spec's Test strategy agrees, then run the `task` check level, tick the slice, update Traceability and make one local commit. The commits and the spec's Traceability are this phase's artifact. Building never starts a review: review is a phase of its own.
 
-This skill edits only three things in the spec: the slice's done marker, a **test exception** in the slice it builds, and the Traceability rows of the criteria that slice covers. Anything else the spec needs is a **spec change**: stop, as **When the spec is wrong** says.
+This skill edits only three things in the spec: done markers (the slice's own, and the unset markers a plan without any needs, as **The done marker** says), a **test exception** in the slice it builds, and the Traceability rows of the criteria that slice covers. Anything else the spec needs is a **spec change**: stop, as **When the spec is wrong** says.
 
 ## Configuration
 
@@ -50,7 +50,7 @@ A slice is **done** when its marker is `[x]`. `/aw-slices` writes every slice wi
 
 Take the spec the user names, or the one `/aw-slices` planned in this conversation. When neither is clear, list the specs under `docs/specs/` with their `status` and ask which one.
 
-The fast route, with intake's "done when" criteria and no spec, is not covered by this skill yet: say so and stop.
+ADR 0013 also sends the fast route through this skill, building from intake's "done when" criteria with no spec. That path is not written yet: on a fast-route task, say so and stop.
 
 Read the spec's frontmatter. **Refuse to go on unless `status` is `approved`**, and say why:
 
@@ -70,9 +70,11 @@ Done when you can name the spec, the one slice this call builds, its criteria, a
 
 ### 2. Start the work branch
 
-Run `git status`. When the working tree has changes this skill did not make, ask the user whether to commit, set aside or keep them before going on: they must not land in this slice's commit.
+Check the working tree for changes. When it has changes this skill did not make, ask the user whether to commit, set aside or keep them before going on: they must not land in this slice's commit.
 
-When the current branch is protected (the base branch or another the VCS adapter names), use `start-branch` to create the work branch, named by the adapter's branch naming from the spec's slug, such as `feat/<slug>`. When the current branch is already a work branch for this spec, from an earlier slice, stay on it. When `start-branch` is at `draft`, write the draft, tell the user to create the branch with it and run `/aw-build` again, and stop: a slice is never built on a protected branch.
+A slice is built on a work branch, never on a protected one (the base branch or another the VCS adapter names). When the current branch is protected, use `start-branch` to create the work branch, named by the adapter's branch naming from the spec's slug, such as `feat/<slug>`. When the current branch is already a work branch for this spec, from an earlier slice, stay on it.
+
+When `start-branch` is at `draft`, write the draft, tell the user to create the branch with it and run `/aw-build` again, and stop. This is the one write at `draft` after which this skill does not go on: every later step would land on the protected branch.
 
 Done when you are on a work branch that is not protected, with no change in the working tree that this slice did not make.
 
@@ -97,13 +99,18 @@ Call the Skill tool with "aw-tdd" and build the slice through its red-green loop
 
 A criterion the Test strategy already plans to prove by `verify:` or `manual:` evidence gets no test: its evidence was agreed.
 
-**Test exception.** When a test at the agreed seam would cost far more than it is worth, such as a real browser, device or third-party account the suite cannot drive, or a timing the suite cannot control, do not force it. Record a test exception instead, as the last item of the slice:
+**Test exception.** When a test at the agreed seam would cost far more than it is worth, such as a real browser, device or third-party account the tests cannot drive, or a timing they cannot control, record a test exception instead, as the last item of the slice:
 
 ```markdown
    - Test exception: AC-2. <why a test at the agreed seam would cost too much>; proven by `verify:` evidence instead.
 ```
 
-Then point the criterion's Traceability row at the verify evidence it relies on (step 6), so that `/aw-verify` proves it on the real app. Test whatever else in the slice is cheap to test. A test exception covers one criterion; when a criterion is still tested in part, keep its `test:` entry beside the `verify:` one.
+The evidence it relies on depends on whether the repo has a verify skill, at `.claude/skills/verify-<app>/` (ADR 0011):
+
+- **A verify skill exists:** `verify:` evidence, which `/aw-verify` gathers on the real app.
+- **No verify skill:** every criterion then needs `test:` or `manual:` evidence, so write "proven by `manual:` evidence instead" in the exception, and name what is to be checked by hand.
+
+Step 6 points the criterion's Traceability row at that evidence. Test whatever else in the slice is cheap to test. A test exception covers one criterion; when a criterion is still tested in part, keep its `test:` entry beside the other.
 
 Done when every behaviour of the slice's criteria has a passing test at an agreed seam, planned `verify:` or `manual:` evidence, or a recorded test exception.
 
@@ -121,7 +128,7 @@ Edit the spec, and nothing else in it:
 
 - **Tick the slice:** change its done marker from `[ ]` to `[x]`.
 - **Test exceptions:** the `Test exception:` items step 4 recorded, in this slice.
-- **Traceability:** for each criterion the slice covers, set its row to the evidence where it landed: `` test: `<path>` `` for each test file that proves it, and `` verify: `docs/specs/<slug>/verify/` `` for a criterion with a test exception, unless the row already names a verify path. Keep the entries earlier slices recorded, separated by `;`, and replace only planned entries this slice made untrue.
+- **Traceability:** for each criterion the slice covers, set its row to the evidence where it landed: `` test: `<path>` `` for each test file that proves it. For a criterion with a test exception, keep a `verify:` path the row already plans, or else write `` verify: `docs/specs/<slug>/verify/` `` as the planned path, which `/aw-verify` replaces with its result's path; with no verify skill, write `manual: <what to check by hand, and why no test>`. Keep the entries earlier slices recorded, separated by `;`, and replace only planned entries this slice made untrue.
 
 Leave the frontmatter, the criteria, every other slice and every other section as they are. Then run `aw-check-spec` again. Fix a finding your edits caused; any other finding on this spec is a spec change: report it, and commit nothing.
 
@@ -131,9 +138,9 @@ Done when the slice is ticked, Traceability names the slice's evidence, and the 
 
 Use `commit` for the slice's code, tests and spec edits, together, with a message in the VCS adapter's commit convention that names the slice, such as `feat: <slice name> (AC-1, AC-3)`. Stage only the paths this slice changed.
 
-Never pass `--no-verify`. When a commit hook fails, fix what it reports, run `run-check task` again when the fix touched code, and commit again. When `commit` is at `draft`, write the exact command and message to the draft and tell the user the path.
+When a commit hook fails, fix what it reports (`--no-verify` is never allowed), run `run-check task` again when the fix touched code, and commit again.
 
-Do not `push`, `open-review` or start a review of any kind: the commit stays local.
+The commit stays local: `push` and `open-review` belong to `/aw-ship`.
 
 Done when the slice is in one local commit on the work branch, or in a draft whose path you gave the user.
 
@@ -148,14 +155,14 @@ Report in chat:
 - the `run-check task` result, and the `aw-check-spec` result;
 - any spec change step 4 or 6 found, for the user to make with `/aw-spec`.
 
-Then name the next skill: `/aw-build` again for the next slice whose blockers are all done, or `/aw-verify` when every slice is done. Tell the user to run it; this skill never runs it, and never starts `/aw-review`.
+Then name the next skill: `/aw-build` again for the next slice whose blockers are all done, or `/aw-verify` when every slice is done. Tell the user to run it; this skill never runs it, and review waits for `/aw-review`.
 
 ## When the spec is wrong
 
 When building shows that the spec is wrong (a criterion cannot be built as stated, contradicts the Design or the code, or needs behaviour the spec rules out), stop at once:
 
-1. Commit nothing, and write no more code. Leave any uncommitted work as it is, and list its files for the user, who decides whether to keep or discard it.
-2. Do not edit the spec: changing it is `/aw-spec`'s, which sets it back to `draft` and asks for approval again.
+1. Commit nothing, and write no more code. List the files this slice changed and tell the user to discard them, or keep them aside for after the spec change; the next `/aw-build` asks about any it finds in the working tree.
+2. Leave the spec as it is: changing it is `/aw-spec`'s, which sets it back to `draft` and asks for approval again.
 3. Propose the spec change: the section and the text as it stands, the text you propose, and the evidence that the spec is wrong, such as a failing test's output or the code that contradicts it.
 
 Tell the user to make the change with `/aw-spec`, then to run `/aw-slices` when the change alters the slice plan, and `/aw-build` again after that. Done when the user has the proposed change and no commit was made.

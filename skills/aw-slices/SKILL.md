@@ -113,7 +113,7 @@ Replace the Slice plan section with the agreed slices, in order, in this shape:
    - Blocked by: 1.
 ```
 
-The `[ ]` is the slice's **done marker**, unset: `/aw-build` ticks it to `[x]` when it builds the slice. On a re-run, keep the marker, and any `Test exception:` item `/aw-build` recorded, on every slice that is done; a done slice that the user's changes alter goes back to `[ ]`, since it has to be built again.
+The `[ ]` is the slice's **done marker**, unset: `/aw-build` ticks it to `[x]` when it builds the slice. On a re-run, keep the marker, and any `Test exception:` item `/aw-build` recorded, on every slice that is done.
 
 Replace the Test strategy section with the agreed seams: for each one, what it is, what it catches, what it misses and the criteria it proves; then each criterion proven by `verify:` or `manual:` evidence, with its reason.
 
