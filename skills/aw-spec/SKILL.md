@@ -1,6 +1,6 @@
 ---
 name: aw-spec
-description: "Write the spec for a standard-route task: grill the user, explore the repo, write docs/specs/<slug>/spec.md as a draft, check it, and set it to approved only on the user's explicit approval. Run after /aw-intake."
+description: "Write the spec for a standard-route task, or for one deliverable of a cleared /aw-wayfinder map: grill the user, explore the repo, write docs/specs/<slug>/spec.md as a draft, check it, and set it to approved only on the user's explicit approval. Run after /aw-intake, or after /aw-wayfinder for each deliverable."
 disable-model-invocation: true
 ---
 
@@ -27,7 +27,11 @@ When the block or an adapter is missing, a skill keeps going on these defaults a
 
 ### 1. Start from intake
 
-Take the task, its type, its route, its ticket key and its pre-step evidence from the `/aw-intake` report in this conversation. When there is none, say so, suggest running `/aw-intake` first, and go on only if the user asks you to, with the task as they state it. When the user names an existing spec instead, go to **Changing a spec** below.
+Take the task, its type, its route, its ticket key and its pre-step evidence from the `/aw-intake` report in this conversation. When the user names an existing spec instead, go to **Changing a spec** below.
+
+On the epic route, the user names a **deliverable** of a cleared `/aw-wayfinder` map instead: its name and the map. `fetch-ticket` the map and read its latest map update, whose Deliverables section lists the deliverable with its type and the decision tickets it rests on, then `fetch-ticket` each of those tickets for its resolution. The task is the deliverable and its route is epic. It has no ticket key of its own: the map stays open until every deliverable ships, so leave `ticket:` out, and name the map and the decision tickets in Design instead. A bug, refactor or performance deliverable needs its pre-step: take its evidence from an `/aw-intake` report on the deliverable in this conversation; when there is none, tell the user to run `/aw-intake` on it first, naming the deliverable and the map, and go on only if they ask you to.
+
+When there is neither an intake report nor a deliverable, say so, suggest running `/aw-intake` first, and go on only if the user asks you to, with the task as they state it.
 
 Done when you can state the task, its type and its ticket key, or that it has none.
 

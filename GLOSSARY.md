@@ -134,6 +134,36 @@ _Avoid_: skipped test, test waiver
 A ticket published from a slice so that the tracker can follow it. The slice stays the source of truth.
 _Avoid_: sub-issue, child ticket
 
+### The epic route
+
+**Map**:
+The one ticket in which `aw-wayfinder` charts an epic-route effort: its destination and notes in the body, and an index of its open decision tickets, the decisions made, the fog and what is out of scope, kept current by map updates. Its decision tickets are linked as part of it. It is an index, not a store: a decision lives only in its ticket.
+_Avoid_: epic, roadmap, decision map
+
+**Map update**:
+A comment on the map that holds its whole current Tickets, Decisions so far, Not yet specified and Out of scope sections, and, once the map clears, its deliverables. The latest one is the map's current state, since the canonical operations cannot rewrite a ticket's body.
+_Avoid_: map edit, status update
+
+**Decision ticket**:
+A ticket linked as part of a map that asks one question, sized to one session, whose answer is a decision, never a piece of the build. Its type is grilling, prototype, research or task, and it is HITL or AFK.
+_Avoid_: wayfinder ticket, implementation ticket, slice
+
+**Destination**:
+What reaching the end of a map looks like: the deliverables, or the answer an investigation is after. It is named first and fixes the map's scope.
+_Avoid_: goal, end state
+
+**Fog**:
+The in-scope questions a map can tell are coming but cannot yet state precisely, kept in its Not yet specified section. Resolving a ticket graduates whatever it makes specifiable into new decision tickets.
+_Avoid_: backlog, unknowns, TBD
+
+**Frontier**:
+A map's open, unblocked, unclaimed decision tickets: the ones a session can take now. A session claims one by setting it to `in-progress` before any work on it.
+_Avoid_: ready queue, next up
+
+**Deliverable**:
+A change that deserves its own spec, listed when a map clears. `aw-wayfinder` hands each one to `aw-spec`, which writes its spec and holds it for its own spec approval.
+_Avoid_: epic child, sub-project, milestone
+
 ### The workflow
 
 **Phase**:
