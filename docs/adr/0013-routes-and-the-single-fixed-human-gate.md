@@ -10,7 +10,7 @@
 
 **Spec approval** is the one fixed human gate. It is what makes writing the spec first worth it, because it catches a misunderstanding before it costs code. It stays light: the person approves explicitly in the conversation, and only then does the agent set `status: approved`. The fast route has no spec, so it has no gate.
 
-Accepting the change is not a fixed gate. `merge` is a canonical VCS operation at `draft` by default, so a person merges. With `merge: write`, `aw-ship` merges only when `aw-review` found no proven defect and `run-check full` passed; with no review host, it merges locally into the base branch. `aw-ship` runs `run-check full` itself.
+Accepting the change is not a fixed gate. `merge` is a canonical VCS operation at `draft` by default, so a person merges. With `merge: write`, `aw-ship` merges only when `aw-review` found no proven defect and `run-check full` passed; with no review host, it merges locally into the base branch. `aw-ship` runs `run-check full` itself. A change with a spec merges only once the spec is `implemented` and passes the script-verified spec check, which fails on a `(failed)` verify result and on an `(inconclusive)` one with no `test:` or `manual:` evidence beside it.
 
 ## Considered Options
 

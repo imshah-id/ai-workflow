@@ -1,0 +1,5 @@
+interface:
+  display_name: "Ship"
+  short_description: "Ship a reviewed change to a review request and, when allowed, a merge"
+policy:
+  allow_implicit_invocation: false

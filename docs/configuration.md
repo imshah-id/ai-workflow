@@ -13,7 +13,7 @@ How kit skills find a repo's configuration, what they may do with it, and what t
 | `### Checks` | `checks.md` | The command for each check level |
 | `### Domain docs` | `domain.md` | Where the glossary and ADRs live |
 
-The templates are in `skills/aw-setup/adapters/`. `node scripts/validate-kit.mjs` fails when one of them misses a canonical operation, names one outside the vocabulary, or gives one an impossible access level. It also fails when a file under `skills/` has a `## Never allowed` or `## Defaults when unconfigured` section whose text differs from this page's, which is the source. `aw-intake`, `aw-spec`, `aw-slices`, `aw-build`, `aw-create-verify`, `aw-verify` and `aw-review` restate the defaults in such a section, and `aw-build`, `aw-create-verify`, `aw-verify` and `aw-review` the never-allowed operations too.
+The templates are in `skills/aw-setup/adapters/`. `node scripts/validate-kit.mjs` fails when one of them misses a canonical operation, names one outside the vocabulary, or gives one an impossible access level. It also fails when a file under `skills/` has a `## Never allowed` or `## Defaults when unconfigured` section whose text differs from this page's, which is the source. `aw-intake`, `aw-spec`, `aw-slices`, `aw-build`, `aw-create-verify`, `aw-verify`, `aw-review` and `aw-ship` restate the defaults in such a section, and `aw-build`, `aw-create-verify`, `aw-verify`, `aw-review` and `aw-ship` the never-allowed operations too.
 
 ## Canonical operations
 
@@ -28,7 +28,7 @@ A skill requests these by name and does what the adapter's Operations table says
 - A read operation is always allowed.
 - A write operation at `write` is performed by the agent.
 - A write operation at `draft` is not performed. The agent writes the exact command or text to `.aw/drafts/<yyyymmdd-hhmmss>-<operation>.md`, tells the user the path, and goes on.
-- `merge` at `write` is still conditional: only when `aw-review` found no proven defect and the `full` level passed (ADR 0013).
+- `merge` at `write` is still conditional: only when `aw-review` found no proven defect and the `full` level passed (ADR 0013), and, for a change with a spec, the spec is `implemented` and passes the script-verified spec check.
 - Some operations are never allowed, whatever an adapter says: see [Never allowed](#never-allowed).
 
 ## Never allowed

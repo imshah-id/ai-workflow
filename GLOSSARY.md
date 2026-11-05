@@ -183,3 +183,15 @@ _Avoid_: concern, warning, nit
 **Pre-existing finding**:
 A defect the same run also shows at the merge-base, or a risk that rests on lines the change did not touch. The review reports it apart, since the change is not responsible for it.
 _Avoid_: legacy issue, existing bug
+
+**Review request**:
+What `aw-ship` opens on the review host to propose merging the work branch: a pull request on GitHub, a merge request on GitLab. With no review host, it is the body alone, a local document the user reads. Its body holds a Summary, Evidence, Merge Danger, a pre-ship checklist and a rollback plan.
+_Avoid_: PR (alone, outside GitHub), MR, merge proposal
+
+**Merge Danger**:
+The section of a review request body that says how hard the change is to walk back: a two-way door when reverting it restores the old behaviour, a one-way door when it does not, plus its blast radius, what it can affect outside the change.
+_Avoid_: risk level, impact
+
+**Rollback plan**:
+The section of a review request body that says what signal would mean undoing the change, the exact steps to undo it without rewriting history, what the change does to data, and how long undoing it takes.
+_Avoid_: revert plan, backout plan

@@ -56,4 +56,6 @@ The script and the fallback walk apply the same rules. Specs may use LF or CRLF 
 - every entry starts with `test:`, `verify:` or `manual:`;
 - a `test:` file exists and mentions its `AC-n` (`AC-1` does not count as a mention of `AC-10`, or the reverse);
 - a `verify:` path exists;
+- no `verify:` result is `(failed)`, since the app does not meet that criterion;
+- a row whose `verify:` result is `(inconclusive)` also holds a `test:` or `manual:` entry, since an inconclusive result proves nothing;
 - a `manual:` entry carries a reason.
