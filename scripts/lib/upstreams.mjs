@@ -184,7 +184,9 @@ function replacedFindings(upstreams, copies) {
 // use of a name is left alone: prose ("a research question"), a bare
 // backticked word (include the word `prototype` in the path) or a path
 // (`/prototype/<name>`). `install` lists the quoted ones it left alone, so a
-// reference in a form this list lacks does not slip through unseen.
+// reference in a form this list lacks does not slip through unseen. `install`
+// also fails on a reference, in these forms, to a skill of the copy's own
+// upstream that the kit neither copies nor replaces.
 
 const escapeRegExp = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -194,23 +196,56 @@ const alternation = (names) =>
     .map(escapeRegExp)
     .join('|');
 
+// The reference forms, in the order the rename applies them. `pattern` matches
+// only the name, so a rewrite leaves the rest of the form as it is; `mention`
+// spells a reference out for a person. The rename, the mapping and the search
+// for references to uncopied skills all read this list, so they cannot drift
+// apart.
+const REFERENCE_FORMS = [
+  { pattern: (tokens) => `(?<=")(?:${tokens})(?=")`, mention: (name) => `"${name}"` },
+  { pattern: (tokens) => `(?<=\`)(?:${tokens})(?=\` skill\\b)`, mention: (name) => `\`${name}\` skill` },
+  { pattern: (tokens) => `(?<=\\[\`)(?:${tokens})(?=\`\\]\\()`, mention: (name) => `[\`${name}\`]` },
+  { pattern: (tokens) => `(?<=(?<![^\\s\`"'(\\[])/)(?:${tokens})(?![\\w/-]|\\.\\w)`, mention: (name) => `/${name}` },
+];
+
 // Replaces every reference to a key of `pairs` with its value.
 function swapReferences(text, pairs) {
   const froms = Object.keys(pairs);
   if (froms.length === 0) return text;
   const tokens = alternation(froms);
-  const swap = (_match, token) => pairs[token];
-  return text
-    .replace(new RegExp(`(?<=")(${tokens})(?=")`, 'g'), swap)
-    .replace(new RegExp(`(?<=\`)(${tokens})(?=\` skill\\b)`, 'g'), swap)
-    .replace(new RegExp(`(?<=\\[\`)(${tokens})(?=\`\\]\\()`, 'g'), swap)
-    .replace(new RegExp(`(?<![^\\s\`"'(\\[])/(${tokens})(?![\\w/-]|\\.\\w)`, 'g'), (_m, token) => `/${pairs[token]}`);
+  return REFERENCE_FORMS.reduce(
+    (swapped, form) => swapped.replace(new RegExp(form.pattern(tokens), 'g'), (name) => pairs[name]),
+    text,
+  );
+}
+
+// Every reference to one of `names` in `text`, in reading order, as
+// `{ line, mention }`.
+function findReferences(text, names) {
+  if (names.length === 0) return [];
+  const tokens = alternation(names);
+  const forms = REFERENCE_FORMS.map(({ pattern, mention }) => ({ pattern: new RegExp(pattern(tokens), 'g'), mention }));
+  return text.split('\n').flatMap((line, index) =>
+    forms
+      .flatMap(({ pattern, mention }) => [...line.matchAll(pattern)].map((match) => ({ at: match.index, mention: mention(match[0]) })))
+      .sort((a, b) => a.at - b.at)
+      .map(({ mention }) => ({ line: index + 1, mention })),
+  );
+}
+
+const FRONTMATTER = /^---\r?\n[\s\S]*?\r?\n---(\r?\n|$)/;
+
+// The value of the `name:` field in a SKILL.md's frontmatter, or null when it
+// has none.
+function skillName(text) {
+  const name = text.match(FRONTMATTER)?.[0].match(/^name:[ \t]*(["']?)(.*?)\1[ \t]*\r?$/m)?.[2];
+  return name || null;
 }
 
 // Renames `from` to `to` in the `name:` field of SKILL.md's frontmatter.
 function swapName(text, file, from, to) {
   if (file !== 'SKILL.md') return text;
-  const match = text.match(/^---\r?\n[\s\S]*?\r?\n---(\r?\n|$)/);
+  const match = text.match(FRONTMATTER);
   if (!match) return text;
   const head = match[0].replace(
     new RegExp(`^(name:[ \\t]*)(["']?)${escapeRegExp(from)}\\2([ \\t]*\\r?)$`, 'm'),
@@ -235,11 +270,11 @@ function renamerFor(copy, names) {
 // The mechanical transform (ADR 0001), relocation part
 //
 // A shared upstream file is one outside the skill's folder that the skill
-// points to, such as Addy Osmani's repo-level references/security-checklist.md.
+// points to, such as a repo-level references/security-checklist.md.
 // upstreams.json lists it under the skill's "shared", by its path from the
 // upstream's root, and the copy holds it at that same path inside its folder:
 // references/security-checklist.md lands in
-// skills/aw-security-and-hardening/references/security-checklist.md.
+// skills/aw-<name>/references/security-checklist.md.
 //
 // A path to a shared file is the relative path from the directory of the
 // file that names it to the shared file, as upstream writes it (from a
@@ -590,21 +625,31 @@ function withUpstream(dir, upstream, fn) {
   }
 }
 
-// The regular files `git ls-tree` lists at `commit` for `pathspec`, as
-// { path, mode, blob } with `path` from the repo's root. Throws on anything
-// else, such as a symlink or a submodule: copies hold only regular files.
-function regularFiles(gitDir, commit, pathspec, { recursive }) {
-  return git(gitDir, ['ls-tree', ...(recursive ? ['-r'] : []), '-z', '--full-tree', commit, '--', pathspec])
+// What `git ls-tree` lists at `commit` for `pathspecs`, every entry when there
+// are none, as { path, mode, type, blob } with `path` from the repo's root.
+function treeEntries(gitDir, commit, pathspecs, { recursive }) {
+  return git(gitDir, ['ls-tree', ...(recursive ? ['-r'] : []), '-z', '--full-tree', commit, '--', ...pathspecs])
     .split('\0')
     .filter(Boolean)
     .map((line) => {
       const [meta, path] = line.split('\t');
       const [mode, type, blob] = meta.split(' ');
-      if (type !== 'blob' || (mode !== '100644' && mode !== '100755')) {
-        throw new SyncError(`${path} at ${commit} is not a regular file (mode ${mode}); copies hold only regular files`);
-      }
-      return { path, mode, blob };
+      return { path, mode, type, blob };
     });
+}
+
+const isRegularFile = ({ mode, type }) => type === 'blob' && (mode === '100644' || mode === '100755');
+
+// The regular files at `commit` for `pathspec`, as { path, mode, blob }. Throws
+// on anything else, such as a symlink or a submodule: copies hold only regular
+// files.
+function regularFiles(gitDir, commit, pathspec, { recursive }) {
+  return treeEntries(gitDir, commit, [pathspec], { recursive }).map((entry) => {
+    if (!isRegularFile(entry)) {
+      throw new SyncError(`${entry.path} at ${commit} is not a regular file (mode ${entry.mode}); copies hold only regular files`);
+    }
+    return { path: entry.path, mode: entry.mode, blob: entry.blob };
+  });
 }
 
 // Every file under `path` at `commit`, as { file, mode, blob } with `file`
@@ -626,6 +671,16 @@ function fileAt(gitDir, commit, path) {
 
 const readBlob = (gitDir, blob) => git(gitDir, ['cat-file', 'blob', blob], { encoding: 'buffer' });
 
+// The skill names of an upstream at `commit`: the `name:` of every SKILL.md in
+// its tree. Unlike a copied folder, the tree may hold anything, so a SKILL.md
+// that is not a regular text file is skipped, as is one without a name.
+function upstreamSkillNames(gitDir, commit) {
+  const names = treeEntries(gitDir, commit, [], { recursive: true })
+    .filter((entry) => isRegularFile(entry) && posix.basename(entry.path) === 'SKILL.md')
+    .map((entry) => skillName(asText(readBlob(gitDir, entry.blob)) ?? ''));
+  return [...new Set(names.filter(Boolean))];
+}
+
 // ---------------------------------------------------------------------------
 // install
 
@@ -634,28 +689,29 @@ function writeFile(path, bytes) {
   writeFileSync(path, bytes);
 }
 
-// Writes one upstream file into a copy with the mechanical transform
-// applied, and returns the lines listing what the transform left alone in it.
-// Throws when the transform cannot be undone on the file, since `check`
-// could then never verify the copy.
-function installFile(copyDir, at, file, bytes, transform) {
+// One upstream file of a copy with the mechanical transform applied: what the
+// copy holds, the uses of a copied or replaced name the transform left alone,
+// and the references to one of `uncopied` it still holds. Throws when the
+// transform cannot be undone on the file, since `check` could then never
+// verify the copy.
+function transformFile(path, bytes, file, transform, uncopied) {
   const text = asText(bytes);
-  if (text === null) {
-    writeFile(join(copyDir, file), bytes);
-    return [];
+  if (text === null) return { content: bytes, leftAlone: [], dangling: [] };
+  const content = transform.apply(text, file);
+  if (transform.undo(content, file) !== text) {
+    throw new SyncError(`${path}: the mechanical transform cannot be undone on this file, so check could not verify it`);
   }
-  const copied = transform.apply(text, file);
-  if (transform.undo(copied, file) !== text) {
-    throw new SyncError(`${at}/${file}: the mechanical transform cannot be undone on this file, so check could not verify it`);
-  }
-  writeFile(join(copyDir, file), copied);
-  return transform.leftAlone(copied).map(({ line, mention }) => `${at}/${file}:${line}: left alone: ${mention}`);
+  return { content, leftAlone: transform.leftAlone(content), dangling: findReferences(content, uncopied) };
 }
 
 // Installs every copy at its pin, applies the mechanical transform, adds
 // LICENSE.upstream and rewrites the lock. Copies dropped from the manifest
 // since the last install are removed, so the copies always match the
-// manifest. Returns the lines to print.
+// manifest. Everything is worked out before the first write, so a failure
+// leaves the copies and the lock as they were. It fails on a reference to a
+// skill of the copy's own upstream that the kit neither copies nor replaces,
+// since that reference points nowhere once the upstream's plugin is disabled.
+// Returns the lines to print.
 export function install(dir) {
   const { upstreams, copies, findings } = readUpstreams(dir);
   if (findings.length > 0) throw new SyncError(findings.join('\n'));
@@ -663,6 +719,8 @@ export function install(dir) {
   const previous = readJsonFile(dir, LOCK).value;
   const lock = { upstreams: {} };
   const lines = [];
+  const writes = [];
+  const dangling = [];
 
   for (const upstream of upstreams) {
     withUpstream(dir, upstream, (gitDir) => {
@@ -671,6 +729,7 @@ export function install(dir) {
         throw new SyncError(`upstream "${upstream.key}" has no ${upstream.license} at ${upstream.commit}`);
       }
       const license = readBlob(gitDir, licenseBlob);
+      const uncopied = upstreamSkillNames(gitDir, upstream.commit).filter((name) => !names.includes(name) && !(name in upstream.replaced));
       const lockedSkills = {};
       for (const copy of upstream.skills) {
         const tree = objectAt(gitDir, upstream.commit, copy.path);
@@ -678,13 +737,18 @@ export function install(dir) {
           throw new SyncError(`upstream "${upstream.key}" has no ${copy.path} at ${upstream.commit}`);
         }
         const at = `skills/${copy.folder}`;
-        const copyDir = join(dir, at);
         const transform = transformFor(copy, names);
-        rmSync(copyDir, { recursive: true, force: true });
+        const planFile = (file, bytes) => {
+          const path = `${at}/${file}`;
+          const planned = transformFile(path, bytes, file, transform, uncopied);
+          writes.push({ path, content: planned.content });
+          lines.push(...planned.leftAlone.map(({ line, mention }) => `${path}:${line}: left alone: ${mention}`));
+          dangling.push(...planned.dangling.map(({ line, mention }) => `${path}:${line}: ${mention}`));
+        };
         const files = {};
         for (const { file, mode, blob } of treeFiles(gitDir, upstream.commit, copy.path)) {
           files[file] = { mode, blob };
-          lines.push(...installFile(copyDir, at, file, readBlob(gitDir, blob), transform));
+          planFile(file, readBlob(gitDir, blob));
         }
         const shared = {};
         for (const file of copy.shared) {
@@ -692,9 +756,9 @@ export function install(dir) {
             throw new SyncError(`${at}/${file}: shared file ${file} would replace a file the skill already has`);
           }
           shared[file] = fileAt(gitDir, upstream.commit, file);
-          lines.push(...installFile(copyDir, at, file, readBlob(gitDir, shared[file].blob), transform));
+          planFile(file, readBlob(gitDir, shared[file].blob));
         }
-        lines.push(...installFile(copyDir, at, LICENSE_FILE, license, transform));
+        planFile(LICENSE_FILE, license);
         lockedSkills[copy.name] = { path: copy.path, tree, files, ...(copy.shared.length > 0 && { shared }) };
         lines.push(`installed ${at} from ${upstream.key} ${copy.path} at ${upstream.commit.slice(0, 12)}`);
       }
@@ -706,6 +770,16 @@ export function install(dir) {
       };
     });
   }
+  if (dangling.length > 0) {
+    throw new SyncError(
+      `${dangling.join('\n')}\n` +
+        `${dangling.length} reference(s) to an upstream skill the kit neither copies nor replaces. ` +
+        `For each, copy the skill or map it under the upstream's "replaced" in ${MANIFEST}.`,
+    );
+  }
+
+  for (const copy of copies) rmSync(join(dir, 'skills', copy.folder), { recursive: true, force: true });
+  for (const { path, content } of writes) writeFile(join(dir, path), content);
 
   for (const lockedUpstream of Object.values(isObject(previous?.upstreams) ? previous.upstreams : {})) {
     for (const name of Object.keys(isObject(lockedUpstream?.skills) ? lockedUpstream.skills : {})) {

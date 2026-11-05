@@ -14,7 +14,7 @@ Each phase of the workflow is owned by exactly one kit skill and has exactly one
 | `aw-ship` | Pocock's `pr`, plus Addy Osmani's pre-ship checklist and rollback plan | Review request body and the spec set to `implemented` |
 | `aw-retro` | Pocock's `retro`, plus a ladder of controls | Proposed controls |
 
-Phase-free copies sit outside the table: `aw-grilling`, `aw-grill-with-docs`, `aw-domain-modeling`, `aw-research`, `aw-prototype`, `aw-tdd`, `aw-diagnosing-bugs`, `aw-codebase-design`, `aw-improve-codebase-architecture`, `aw-writing-for-agents` and `aw-handoff` (from Pocock), and `aw-source-driven-development` and `aw-security-and-hardening` (from Addy Osmani). `aw-retro` points to `aw-improve-codebase-architecture` when an error class is best fixed at the architecture rung of its ladder.
+Phase-free copies sit outside the table: `aw-grilling`, `aw-grill-with-docs`, `aw-domain-modeling`, `aw-research`, `aw-prototype`, `aw-tdd`, `aw-diagnosing-bugs`, `aw-codebase-design`, `aw-improve-codebase-architecture`, `aw-writing-for-agents` and `aw-handoff` (from Pocock), and `aw-source-driven-development` (from Addy Osmani). `aw-security-and-hardening`, a phase-free adaptation of Addy Osmani's skill, sits outside it too. `aw-retro` points to `aw-improve-codebase-architecture` when an error class is best fixed at the architecture rung of its ladder.
 
 The slice plan lives in the spec. When the tracker allows it, `aw-slices` publishes each slice as a **mirror ticket**, and the slice remains the source of truth.
 
