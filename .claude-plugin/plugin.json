@@ -37,6 +37,7 @@
     "./skills/aw-slices",
     "./skills/aw-build",
     "./skills/aw-create-verify",
-    "./skills/aw-verify"
+    "./skills/aw-verify",
+    "./skills/aw-review"
   ]
 }

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Review"
+  short_description: "Review the diff on Spec, Standards and Security axes"
+policy:
+  allow_implicit_invocation: false
