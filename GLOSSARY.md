@@ -53,11 +53,11 @@ Whether the agent performs a write operation itself (`write`) or leaves a draft 
 _Avoid_: permission, mode, read-only
 
 **Default access**:
-The access level a tracker or VCS adapter gives its write operations unless a row of its Operations table says otherwise.
+The access level a tracker or VCS adapter declares for its write operations as a whole. Each row of its Operations table still states its own effective level.
 _Avoid_: global level, base access, fallback
 
 **Override**:
-A row of an adapter's Operations table whose Access differs from the adapter's default access.
+A write operation whose effective access level in an adapter's Operations table differs from that adapter's Default access.
 _Avoid_: exception, per-operation setting, custom level
 
 **Draft**:
