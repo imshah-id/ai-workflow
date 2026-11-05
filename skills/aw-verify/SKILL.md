@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 # Verify
 
-Prove each acceptance criterion of a spec on the **real app**, through the repo's verify skill at `.claude/skills/verify-<app>/` (ADR 0011), and record each result as `verify:` evidence in the spec's Traceability. The result files under `docs/specs/<slug>/verify/` and the Traceability rows that point to them are this phase's artifact.
+Prove each acceptance criterion of a spec on the **real app**, through the repo's verify skill at `.claude/skills/verify-<app>/` (ADR 0011), and record each result as `verify:` evidence in the spec's Traceability. The result files under `docs/specs/<slug>/verify/` and the Traceability rows that point to them are this phase's artifact; on the fast route, which has no spec, it proves intake's done-when criteria instead, as **The fast route** says.
 
 This skill observes; it never fixes. It changes no code and no test. In the spec it edits only the Traceability rows, and the done marker of a slice whose criterion failed, which it sets back to `[ ]` so that `/aw-build` builds the slice again. A criterion the app does not meet is recorded as failed and reported, never patched here.
 
@@ -168,15 +168,19 @@ When the user reports a check by hand, record it in that criterion's row as `man
 
 ## The fast route
 
-On the fast route (ADR 0013) there is no spec: this skill proves `/aw-intake`'s done-when criteria on the real app, and runs only when the repo has a verify skill. Follow the steps above with these changes.
+On the fast route (ADR 0013) there is no spec: this skill proves `/aw-intake`'s done-when criteria on the real app, and runs only when the repo has a verify skill. Its artifact is then local result files under `.aw/verify/`, in place of the `verify:` evidence in Traceability that ADR 0010 names. Follow the steps above with these changes; where a step or its "Done when" line names the spec, a slice or Traceability, read the task and its criteria.
 
-**Step 1: take the criteria, not a spec.** The task is on the fast route when `/aw-intake` reported `Route: fast` for it in this conversation, or when the work branch's commits since the diff base carry `Done when:` lines, which `/aw-build` writes, and touch no spec under `docs/specs/`. Take the criteria from intake's report, or else from those lines (`git log <base>..HEAD --format=%B`), or else ask the user for them. There is no `status`, slice plan or `aw-check-spec` run to check. Refuse on a protected branch, as for a spec.
+**Step 1: take the criteria, not a spec.** The task is on the fast route when `/aw-intake` reported `Route: fast` for it in this conversation, or when the work branch's commits since the diff base carry the `Done when:` lines `/aw-build` writes and touch no spec under `docs/specs/`. Take the criteria from intake's report, or else from the latest of those commits that carries `Done when:` lines (`git log <base>..HEAD --format=%B`), or else ask the user for them. There is no `status`, slice plan or `aw-check-spec` run to check. Refuse on a protected branch, as for a spec.
 
-**Step 2: no verify skill means no phase.** When the repo has no verify skill, the fast route skips this phase, and **Without a verify skill** does not apply: say so, and name `/aw-review` as the next skill. A criterion that `/aw-build` gave a test exception is then checked by hand, as its report said.
+Done when you can name the done-when criteria and the work branch you are on.
+
+**Step 2: no verify skill means no phase.** When the repo has no verify skill, the fast route skips this phase, and **Without a verify skill** does not apply: say so, and name `/aw-review` as the next skill. A criterion that `/aw-build` gave a test exception is then checked by hand when `/aw-ship` asks for it.
 
 **Step 3: a journey per criterion.** Read each done-when criterion as its "given", "when" and "then", and plan its journey through the feature map, as for an `AC-n`.
 
-**Steps 4 and 5: results stay local.** Save each journey's captures, and one result file per criterion, `dw-<n>.md` for the criterion's place in the list, under `.aw/verify/<yyyymmdd-hhmmss>-<branch>/`, with `/` in the branch name made `-`. The result file has the shape of step 5's, headed `# Done when <n>: <result>`. There is no spec to edit and no Traceability: `.aw/` is local state, and the results reach the review request through `/aw-ship`'s Evidence.
+**Steps 4 and 5: results stay local.** Save each journey's captures, and one result file per criterion, `done-when-<n>.md` for the criterion's place in the list, under `.aw/verify/<yyyymmdd-hhmmss>-<branch>/`, with `/` in the branch name made `-`. The result file has the shape of step 5's, headed `# Done when <n>: <result>`. There is no spec to edit and no Traceability: `.aw/` is local state, and the results reach the review request through `/aw-ship`'s Evidence.
+
+Done when every criterion has a result file and the app is cleaned up.
 
 **Step 6: no commit.** Nothing this skill wrote is committed on the fast route. Skip the step.
 
@@ -184,4 +188,4 @@ On the fast route (ADR 0013) there is no spec: this skill proves `/aw-intake`'s 
 
 - **every criterion passed**, or is inconclusive with a test that proves it: `/aw-review`;
 - **a criterion failed**: the task is not done. The user fixes it with `/aw-build`, then runs `/aw-verify` again;
-- **a criterion is inconclusive with no test**: the user checks it by hand on the running app and tells you what they did and saw; report it, for `/aw-ship` to record, then name `/aw-review`.
+- **a criterion is inconclusive with no test**: it needs a check by hand, which `/aw-ship` asks the user for; name `/aw-review`.

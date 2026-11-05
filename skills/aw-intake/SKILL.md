@@ -85,7 +85,7 @@ Report in chat, in this shape:
 **Next:** <the skill to run>
 ```
 
-The fast route has no spec, so for every type but investigation, state 1 to 3 **done when** criteria: each one observable, so that `aw-build` can prove it and `aw-review` can judge against it. They are the task's definition of done for every phase after this one: `aw-build` builds until each holds, `aw-verify` proves them on the real app when a verify skill exists, `aw-review` judges the Spec axis against them, and `aw-ship` shows what proves each. When a criterion can only be met by changing a contract, stored data or anything security-related, the task is not fast: classify it again as standard.
+The fast route has no spec, so for every type but investigation, state 1 to 3 **done when** criteria: each one observable, so that `aw-build` can prove it and `aw-review` can judge against it. They are the task's definition of done for every phase after this one: `aw-build` builds until each holds, `aw-verify` proves them on the real app when a verify skill exists, `aw-review` judges the Spec axis against them, and `aw-ship` shows what proves each. When a criterion can only be met by a change step 3 keeps off the fast route, classify the task again as standard.
 
 **Next**, by route:
 

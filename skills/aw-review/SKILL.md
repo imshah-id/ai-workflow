@@ -65,6 +65,8 @@ Done when you have the diff command, the commits, the branch and both hashes, an
 
 ### 2. Find what the Spec axis judges against
 
+First find the route. It is the fast route when `/aw-intake` reported `Route: fast` for the task in this conversation, or when the commits since the base carry the `Done when:` lines `/aw-build` writes and the diff touches no spec under `docs/specs/`; otherwise it is the standard or epic route.
+
 **Standard or epic route: the spec.** Take the spec the user names, or else the one the diff touches under `docs/specs/<slug>/spec.md` (`/aw-build` commits its spec edits with each slice), or else the one whose slug the branch name holds. When more than one fits, or none does, list the specs under `docs/specs/` with their `status` and ask which one. Read its frontmatter:
 
 - `draft`: stop. The spec has not passed spec approval; tell the user to finish it with `/aw-spec`.
@@ -73,7 +75,7 @@ Done when you have the diff command, the commits, the branch and both hashes, an
 
 The Spec axis judges against every `AC-n`, and against the scope: the Problem and goal, Out of scope and Boundaries sections. Note each slice whose done marker is not `[x]`, for the report.
 
-**Fast route: the "done when" criteria.** With no spec, take the 1 to 3 "done when" criteria from `/aw-intake`'s report in this conversation, or else from the `Done when:` lines `/aw-build` wrote in the commits' messages (`git log <base>..HEAD --format=%B`), or else ask the user for them. They are the definition of done, and the scope: the diff should do what they ask and nothing more. When there are none, the Spec axis does not run, and the report says "No spec or done-when criteria: Spec axis not run." Also note the latest verify results under `.aw/verify/`, when `/aw-verify` ran on this branch.
+**Fast route: the "done when" criteria.** With no spec, take the 1 to 3 "done when" criteria from `/aw-intake`'s report in this conversation, or else from the latest commit whose message carries the `Done when:` lines `/aw-build` writes (`git log <base>..HEAD --format=%B`), or else ask the user for them. They are the definition of done, and the scope: the diff should do what they ask and nothing more. When there are none, the Spec axis does not run, and the report says "No spec or done-when criteria: Spec axis not run." Also note the latest verify results under `.aw/verify/`, when `/aw-verify` ran on this branch.
 
 When the commits name a ticket, use `fetch-ticket` and give it to the Spec axis as context; the spec or the criteria stay what it judges against.
 
