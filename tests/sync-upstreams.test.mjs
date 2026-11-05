@@ -347,12 +347,13 @@ const DELTA =
 const DELTA_PATTERNS = 'Shared lists live in `../../../../references/checklist.md#lists`.\n';
 const CHECKLIST = 'Use alongside the `delta` skill. Not a path: `rel === \'../\'`.\n';
 
-function upstreamWithShared() {
+function upstreamWithShared(extraFiles = {}) {
   return makeUpstream({
     ...upstreamFiles(),
     'references/checklist.md': CHECKLIST,
     'skills/group/delta/SKILL.md': DELTA,
     'skills/group/delta/references/patterns.md': DELTA_PATTERNS,
+    ...extraFiles,
   });
 }
 
@@ -416,14 +417,7 @@ test('a copy pointing to an upstream file it does not relocate is reported', () 
 
 // A kit whose `delta` copy also has references/notes.md with the given text.
 function kitWithDeltaNotes(notes) {
-  const upstream = makeUpstream({
-    ...upstreamFiles(),
-    'references/checklist.md': CHECKLIST,
-    'skills/group/delta/SKILL.md': DELTA,
-    'skills/group/delta/references/patterns.md': DELTA_PATTERNS,
-    'skills/group/delta/references/notes.md': notes,
-  });
-  return kitWithShared({ upstream });
+  return kitWithShared({ upstream: upstreamWithShared({ 'skills/group/delta/references/notes.md': notes }) });
 }
 
 test('a copy pointing to a folder outside its folder is reported', () => {
@@ -440,15 +434,20 @@ test('a copy pointing to a file without an extension outside its folder is repor
 
   assertOneFinding(
     validate(dir),
-    /^skills\/aw-delta\/references\/notes\.md:1: points outside the copy's folder: \.\.\/\.\.\/\.\.\/Makefile; list the file under "shared"/,
+    /^skills\/aw-delta\/references\/notes\.md:1: points outside the copy's folder: \.\.\/\.\.\/\.\.\/Makefile; list the file under "shared" in upstreams\.json$/,
   );
 });
 
-test('a copy whose paths climb but stay inside its folder, or are not paths, is not reported', () => {
+test('a copy whose paths climb but stay inside its folder is not reported', () => {
   const { dir } = kitWithDeltaNotes(
-    'Back to [the skill](../SKILL.md) and `../references/patterns.md#lists`; the folder is `../references/`.\n' +
-      "Not paths: `rel === '../'`, `rel === '..'`, `../..`, a../b and `x/../../y`.\n",
+    'Back to [the skill](../SKILL.md) and `../references/patterns.md#lists`; the folder is `../references/`.\n',
   );
+
+  assertNoFindings(validate(dir));
+});
+
+test('a copy with a bare ../ or a ../ inside a longer path or word is not reported', () => {
+  const { dir } = kitWithDeltaNotes("Not paths: `rel === '../'`, `rel === '..'`, `../..`, a../b and `x/../../y`.\n");
 
   assertNoFindings(validate(dir));
 });

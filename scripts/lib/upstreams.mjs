@@ -347,10 +347,12 @@ function checkFile(at, bytes, expectedBlob, file, transform) {
 // A relative path that climbs: one or more `../` then at least one path
 // segment, to a file with or without an extension or to a folder with or
 // without a trailing `/`, optionally followed by an `#anchor`. A bare `../`
-// or `..`, as in code that tests for it, has no segment and is not a path. A
-// `../` right after a word character, `.`, `/` or `-` is inside a longer path
-// or word, so it does not start one. outsidePaths() keeps only the matches
-// that resolve outside the copy's folder.
+// or `..`, as in code that tests for it, has no named segment and is not a
+// path; nor is a run of them such as `../..`. A `../` right after a word
+// character, `.`, `/` or `-` is inside a longer path or word, so it does not
+// start one. outsidePaths() keeps only the matches that resolve outside the
+// copy's folder. Only a trailing `/` marks a match as a folder: offline,
+// `../shared` and `../Makefile` look alike, so both get the file hint.
 const CLIMBING_PATH = /(?<![\w./-])((?:\.\.\/)+(?:[\w.-]+\/)*[\w.-]*[\w-]\/?)(#[\w-]*)?/g;
 
 // One finding per path in a copied file that resolves outside the copy's
