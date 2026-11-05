@@ -4,8 +4,8 @@
 // directory, so nothing touches the network) and a fixture kit whose
 // upstreams.json points at it, installs the copies with
 // `node scripts/sync-upstreams.mjs install <kit>`, and asserts on exit codes,
-// reported findings and output. The rename and relocation tests also read the
-// installed copy, since the copy is what `install` outputs.
+// reported findings and output. The rename, relocation and mapping tests also
+// read the installed copy, since the copy is what `install` outputs.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -467,4 +467,104 @@ test('report lists the upstream commits that changed a shared file a copy reloca
 test('an unknown mode is a usage error', () => {
   const { status } = runCli(syncCli, 'sync', repoRoot);
   assert.equal(status, 2);
+});
+
+// An upstream whose `alpha` refers, in every form the rename knows, to the
+// uncopied `gamma`, which the kit replaces with its own `aw-omega`, the way
+// Pocock's tdd refers to code-review and the kit ships aw-review.
+const ALPHA_WITH_REPLACED =
+  '---\nname: alpha\ndescription: Refers to an uncopied skill.\n---\n\n' +
+  'Call the Skill tool with "gamma" after "beta".\n' +
+  'Then load the `gamma` skill, or run `/gamma` yourself.\n' +
+  'See [`gamma`](https://example.com/gamma) for more.\n' +
+  'A gamma ray and `gamma` alone are not references.\n';
+
+// A fixture kit whose upstream declares that `aw-omega` replaces `gamma`,
+// installed with alpha's text referring to gamma.
+function kitWithReplaced() {
+  const files = upstreamFiles();
+  files['skills/group/alpha/SKILL.md'] = ALPHA_WITH_REPLACED;
+  return installedKit({
+    upstream: makeUpstream(files),
+    edit: (kit) => {
+      kit['upstreams.json'].upstreams.fixture.replaced = { gamma: 'aw-omega' };
+    },
+  });
+}
+
+test('install points a reference to a replaced skill at its kit skill, in every reference form', () => {
+  const { dir } = kitWithReplaced();
+
+  assert.equal(
+    read(dir, 'skills/aw-alpha/SKILL.md'),
+    '---\nname: aw-alpha\ndescription: Refers to an uncopied skill.\n---\n\n' +
+      'Call the Skill tool with "aw-omega" after "aw-beta".\n' +
+      'Then load the `aw-omega` skill, or run `/aw-omega` yourself.\n' +
+      'See [`aw-omega`](https://example.com/gamma) for more.\n' +
+      'A gamma ray and `gamma` alone are not references.\n',
+  );
+  assertNoFindings(sync('check', dir));
+});
+
+test('a copy whose reference to a replaced skill was reverted by hand to the upstream name is reported', () => {
+  const { dir } = kitWithReplaced();
+  write(dir, 'skills/aw-alpha/SKILL.md', read(dir, 'skills/aw-alpha/SKILL.md').replace('`aw-omega` skill', '`gamma` skill'));
+
+  assertOneFinding(sync('check', dir), /^skills\/aw-alpha\/SKILL\.md: a mapping is missing/);
+});
+
+// An installed kit whose upstreams.json then gains `replaced` as given.
+function kitThenReplaced(replaced) {
+  const { dir } = installedKit();
+  const manifest = JSON.parse(read(dir, 'upstreams.json'));
+  manifest.upstreams.fixture.replaced = replaced;
+  write(dir, 'upstreams.json', json(manifest));
+  return dir;
+}
+
+test('a replaced skill that is also a copied skill is reported', () => {
+  const dir = kitThenReplaced({ beta: 'aw-omega' });
+
+  assertOneFinding(validate(dir), /^upstreams\.json: upstream "fixture": replaced skill "beta" is copied from upstream "fixture"/);
+});
+
+test('a replaced skill that maps to a name without the aw- prefix is reported', () => {
+  const dir = kitThenReplaced({ gamma: 'omega' });
+
+  assertOneFinding(validate(dir), /^upstreams\.json: upstream "fixture": replaced skill "gamma" maps to "omega", which lacks the aw- prefix/);
+});
+
+test('a replaced skill that maps to the name of a copy is reported', () => {
+  const dir = kitThenReplaced({ gamma: 'aw-alpha' });
+
+  assertOneFinding(validate(dir), /^upstreams\.json: upstream "fixture": replaced skill "gamma" maps to "aw-alpha", the copy of "alpha"/);
+});
+
+test('install refuses a manifest with an invalid mapping', () => {
+  const dir = kitThenReplaced({ gamma: 'omega' });
+
+  const { status, stderr } = sync('install', dir);
+  assert.notEqual(status, 0);
+  assert.match(stderr, /replaced skill "gamma" maps to "omega"/);
+});
+
+test('install fails when upstream text already refers to the kit skill a replaced skill maps to', () => {
+  const files = upstreamFiles();
+  files['skills/group/alpha/SKILL.md'] = ALPHA_WITH_REPLACED + 'Or run `/aw-omega` instead.\n';
+  const upstream = makeUpstream(files);
+  const dir = tempDir('aw-kit-');
+  const kit = kitFiles(upstream);
+  kit['upstreams.json'].upstreams.fixture.replaced = { gamma: 'aw-omega' };
+  writeFiles(dir, kit);
+
+  const { status, stderr } = sync('install', dir);
+  assert.notEqual(status, 0);
+  assert.match(stderr, /^skills\/aw-alpha\/SKILL\.md: the mechanical transform cannot be undone on this file/);
+});
+
+test('install lists the quoted uses of a replaced name it left alone', () => {
+  const { install } = kitWithReplaced();
+
+  const leftAlone = install.stdout.split('\n').filter((line) => line.includes('left alone'));
+  assert.deepEqual(leftAlone, ['skills/aw-alpha/SKILL.md:9: left alone: `gamma`']);
 });

@@ -27,8 +27,12 @@ An upstream skill shipped with its text unchanged except for the mechanical tran
 _Avoid_: vendored skill, fork, mirror
 
 **Mechanical transform**:
-The only edits a copy may carry. The first renames it with the `aw-` prefix. The second moves the shared upstream files it points to into its own folder and rewrites the paths to them.
+The only edits a copy may carry. The first renames it with the `aw-` prefix. The second moves the shared upstream files it points to into its own folder and rewrites the paths to them. The third points its references to an upstream skill the kit replaces at the kit skill that replaces it.
 _Avoid_: patch, local edit
+
+**Replaced skill**:
+An upstream skill the kit does not copy but replaces with a kit skill of its own, as `aw-review` replaces Pocock's `code-review`. The mechanical transform points a copy's references to it at the kit skill.
+_Avoid_: mapped skill, substitute
 
 **Adaptation**:
 A kit skill whose text derives from one or more upstream skills.
