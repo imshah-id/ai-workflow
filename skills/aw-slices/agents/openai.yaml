@@ -1,0 +1,5 @@
+interface:
+  display_name: "Slices"
+  short_description: "Plan an approved spec as slices"
+policy:
+  allow_implicit_invocation: false
