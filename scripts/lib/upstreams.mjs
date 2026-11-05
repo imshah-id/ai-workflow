@@ -17,6 +17,14 @@
 // `{ "path": "<folder>", "shared": ["<file, by its path from the upstream's root>"] }`
 // instead of the bare folder.
 //
+// An upstream may also declare which of its uncopied skills a kit skill
+// replaces, so a copy that refers to one points at the kit skill instead:
+//
+//       "replaced": { "<upstream name>": "<kit skill name>" }
+//
+// A replaced name may not be a copied skill of any upstream, and its kit
+// skill carries the `aw-` prefix but is not the name of a copy.
+//
 // `release` and `reason` record the choice of pin for people; no code reads
 // them. Each copied skill lands in skills/aw-<upstream name>/.
 //
@@ -30,7 +38,7 @@
 // `check` needs only the lock and the copies, so it runs offline. It undoes
 // the transform on each copied file, compares the result to the locked
 // upstream hash, and redoes the transform to confirm the copy carries every
-// rename and path rewrite it makes. It also reports any path in a copy that
+// rename, path rewrite and mapping it makes. It also reports any path in a copy that
 // still climbs out of the copy's folder.
 
 import { spawnSync } from 'node:child_process';
@@ -105,11 +113,15 @@ export function readUpstreams(dir) {
       findings.push(`${at} needs a "commit" that is a full 40-character SHA`);
     }
     if (!isObject(entry.skills)) findings.push(`${at} needs "skills", an object of name to folder`);
+    const replaced = entry.replaced ?? {};
+    const validReplaced = isObject(replaced) && Object.values(replaced).every((to) => typeof to === 'string');
+    if (!validReplaced) findings.push(`${at} needs "replaced" to be an object of upstream name to kit skill`);
     const upstream = {
       key,
       repo: entry.repo,
       commit: entry.commit,
       license: typeof entry.license === 'string' ? entry.license : 'LICENSE',
+      replaced: validReplaced ? replaced : {},
       skills: [],
     };
     for (const [name, value] of Object.entries(isObject(entry.skills) ? entry.skills : {})) {
@@ -134,7 +146,28 @@ export function readUpstreams(dir) {
     }
     upstreams.push(upstream);
   }
+  findings.push(...replacedFindings(upstreams, copies));
   return { upstreams, copies, findings };
+}
+
+// Findings about each upstream's "replaced", checked once every copy is known.
+function replacedFindings(upstreams, copies) {
+  const findings = [];
+  for (const upstream of upstreams) {
+    const at = `${MANIFEST}: upstream "${upstream.key}"`;
+    for (const [from, to] of Object.entries(upstream.replaced)) {
+      const copied = copies.find((copy) => copy.name === from);
+      const copyNamed = copies.find((copy) => copy.folder === to);
+      if (copied) {
+        findings.push(`${at}: replaced skill "${from}" is copied from upstream "${copied.upstream.key}"; a copied skill is renamed, not replaced`);
+      } else if (!to.startsWith(PREFIX) || to === PREFIX) {
+        findings.push(`${at}: replaced skill "${from}" maps to "${to}", which lacks the ${PREFIX} prefix of a kit skill`);
+      } else if (copyNamed) {
+        findings.push(`${at}: replaced skill "${from}" maps to "${to}", the copy of "${copyNamed.name}"; it must map to a kit skill`);
+      }
+    }
+  }
+  return findings;
 }
 
 // ---------------------------------------------------------------------------
@@ -244,21 +277,49 @@ function pathPairsFor(copy, file) {
   return { toCopy, toUpstream };
 }
 
-// The mechanical transform for one copy, given the names of every copied
-// skill: `apply` turns upstream text into copy text and `undo` turns it back.
-// `missingRewrite` tells whether copy text still holds a path to a shared
-// file as upstream wrote it. `file` is the path inside the copy.
-function transformFor(copy, names) {
-  const renamer = renamerFor(copy, names);
+// ---------------------------------------------------------------------------
+// The mechanical transform (ADR 0001), mapping part
+//
+// A replaced skill is an upstream skill the kit does not copy but replaces
+// with a kit skill of its own, as aw-review replaces Pocock's code-review.
+// The copy's upstream lists it under "replaced". A reference to it, in the
+// same forms the rename knows, points at the kit skill instead, so a copy
+// never sends the agent to a skill that is gone once the upstream's plugin
+// is disabled. The kit skill's name must not already appear in upstream text
+// in a reference form, or `undo` could not tell the two apart; `install`
+// fails on such a file.
+
+// The mapping for one copy: `apply` points references to a replaced skill at
+// its kit skill, `undo` points them back.
+function mapperFor(copy) {
+  const toKit = copy.upstream.replaced;
+  const toUpstream = Object.fromEntries(Object.entries(toKit).map(([from, to]) => [to, from]));
   return {
-    apply: (text, file) => renamer.apply(swapPaths(text, pathPairsFor(copy, file).toCopy), file),
-    undo: (text, file) => swapPaths(renamer.undo(text, file), pathPairsFor(copy, file).toUpstream),
-    missingRewrite: (text, file) => swapPaths(text, pathPairsFor(copy, file).toCopy) !== text,
+    apply: (text) => swapReferences(text, toKit),
+    undo: (text) => swapReferences(text, toUpstream),
   };
 }
 
-// Quoted or backticked uses of a copied name, and paths through a folder of
-// that name, that the rename left in `text`, as `{ line, mention }`.
+// The mechanical transform for one copy, given the names of every copied
+// skill: `apply` turns upstream text into copy text and `undo` turns it back.
+// `missingRewrite` tells whether copy text still holds a path to a shared
+// file as upstream wrote it, and `missingMapping` whether it still refers to
+// a replaced skill. `leftAlone` lists the uses of a copied or replaced name
+// the transform left in copy text. `file` is the path inside the copy.
+function transformFor(copy, names) {
+  const renamer = renamerFor(copy, names);
+  const mapper = mapperFor(copy);
+  return {
+    apply: (text, file) => mapper.apply(renamer.apply(swapPaths(text, pathPairsFor(copy, file).toCopy), file)),
+    undo: (text, file) => swapPaths(renamer.undo(mapper.undo(text), file), pathPairsFor(copy, file).toUpstream),
+    missingRewrite: (text, file) => swapPaths(text, pathPairsFor(copy, file).toCopy) !== text,
+    missingMapping: (text) => mapper.apply(text) !== text,
+    leftAlone: (text) => leftAlone(text, [...names, ...Object.keys(copy.upstream.replaced)]),
+  };
+}
+
+// Quoted or backticked uses of a copied or replaced name, and paths through a
+// folder of that name, that the transform left in `text`, as `{ line, mention }`.
 function leftAlone(text, names) {
   if (names.length === 0) return [];
   const tokens = alternation(names);
@@ -338,6 +399,9 @@ function checkFile(at, bytes, expectedBlob, file, transform) {
     if (transform.apply(upstream, file) === candidate) return [];
     if (transform.missingRewrite(candidate, file)) {
       return [`${at}: a path rewrite is missing; the mechanical transform rewrites every path to a shared file to point inside the copy`];
+    }
+    if (transform.missingMapping(candidate)) {
+      return [`${at}: a mapping is missing; the mechanical transform points every reference to a replaced skill at the kit skill that replaces it`];
     }
     return [`${at}: a rename is missing; the mechanical transform adds the aw- prefix to the name: field and to every reference to a copied skill`];
   }
@@ -572,10 +636,10 @@ function writeFile(path, bytes) {
 }
 
 // Writes one upstream file into a copy with the mechanical transform
-// applied, and returns the lines listing what the rename left alone in it.
+// applied, and returns the lines listing what the transform left alone in it.
 // Throws when the transform cannot be undone on the file, since `check`
 // could then never verify the copy.
-function installFile(copyDir, at, file, bytes, transform, names) {
+function installFile(copyDir, at, file, bytes, transform) {
   const text = asText(bytes);
   if (text === null) {
     writeFile(join(copyDir, file), bytes);
@@ -586,7 +650,7 @@ function installFile(copyDir, at, file, bytes, transform, names) {
     throw new SyncError(`${at}/${file}: the mechanical transform cannot be undone on this file, so check could not verify it`);
   }
   writeFile(join(copyDir, file), copied);
-  return leftAlone(copied, names).map(({ line, mention }) => `${at}/${file}:${line}: left alone: ${mention}`);
+  return transform.leftAlone(copied).map(({ line, mention }) => `${at}/${file}:${line}: left alone: ${mention}`);
 }
 
 // Installs every copy at its pin, applies the mechanical transform, adds
@@ -621,7 +685,7 @@ export function install(dir) {
         const files = {};
         for (const { file, mode, blob } of treeFiles(gitDir, upstream.commit, copy.path)) {
           files[file] = { mode, blob };
-          lines.push(...installFile(copyDir, at, file, readBlob(gitDir, blob), transform, names));
+          lines.push(...installFile(copyDir, at, file, readBlob(gitDir, blob), transform));
         }
         const shared = {};
         for (const file of copy.shared) {
@@ -629,9 +693,9 @@ export function install(dir) {
             throw new SyncError(`${at}/${file}: shared file ${file} would replace a file the skill already has`);
           }
           shared[file] = fileAt(gitDir, upstream.commit, file);
-          lines.push(...installFile(copyDir, at, file, readBlob(gitDir, shared[file].blob), transform, names));
+          lines.push(...installFile(copyDir, at, file, readBlob(gitDir, shared[file].blob), transform));
         }
-        lines.push(...installFile(copyDir, at, LICENSE_FILE, license, transform, names));
+        lines.push(...installFile(copyDir, at, LICENSE_FILE, license, transform));
         lockedSkills[copy.name] = { path: copy.path, tree, files, ...(copy.shared.length > 0 && { shared }) };
         lines.push(`installed ${at} from ${upstream.key} ${copy.path} at ${upstream.commit.slice(0, 12)}`);
       }

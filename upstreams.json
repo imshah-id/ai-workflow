@@ -18,6 +18,9 @@
         "improve-codebase-architecture": "skills/engineering/improve-codebase-architecture",
         "writing-for-agents": "skills/productivity/writing-for-agents",
         "handoff": "skills/productivity/handoff"
+      },
+      "replaced": {
+        "code-review": "aw-review"
       }
     },
     "addyosmani": {
