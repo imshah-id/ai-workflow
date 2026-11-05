@@ -17,7 +17,7 @@ The canonical operations form a closed vocabulary:
 - **VCS:** `start-branch`, `commit`, `diff-base`, `push`, `open-review`, `merge`
 - **Checks:** `run-check <level>`
 
-Each write operation has one of two access levels: `write`, where the agent performs it, or `draft`, where the agent writes the exact text or command to `.aw/drafts/` and a person applies it. Reading is always allowed. The tracker and VCS files each have a **Default access** line, and the Access column of their Operations table gives each write operation's effective level; read operations are marked `read`. A row whose Access differs from the default is an override. Force-pushing, deleting branches and pushing directly to protected branches are never allowed and are not configurable. When `merge` is at `write`, it is still conditional (ADR 0013).
+Each write operation has one of two access levels: `write`, where the agent performs it, or `draft`, where the agent writes the exact text or command to `.aw/drafts/` and a person applies it. Reading is always allowed. The tracker and VCS files each have a **Default access** line, and the Access column of their Operations table gives each write operation's effective level; read operations are marked `read`. A row whose Access differs from the default is an override. Force-pushing, deleting branches, pushing directly to protected branches and `--no-verify` are never allowed and are not configurable. When `merge` is at `write`, it is still conditional (ADR 0013).
 
 ## Considered Options
 

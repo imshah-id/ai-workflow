@@ -52,6 +52,14 @@ _Avoid_: command, action, verb
 Whether the agent performs a write operation itself (`write`) or leaves a draft for a person (`draft`).
 _Avoid_: permission, mode, read-only
 
+**Default access**:
+The access level a tracker or VCS adapter declares for its write operations as a whole. Each row of its Operations table still states its own effective level.
+_Avoid_: global level, base access, fallback
+
+**Override**:
+A write operation whose effective access level in an adapter's Operations table differs from that adapter's Default access.
+_Avoid_: exception, per-operation setting, custom level
+
 **Draft**:
 The exact text or command of an operation the agent may not perform, left for a person to apply.
 _Avoid_: proposal, suggestion, pending change
