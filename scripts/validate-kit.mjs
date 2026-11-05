@@ -84,7 +84,7 @@ function checkSkills(dir) {
         `${at}/SKILL.md: name "${fields.name ?? ''}" does not match folder "${folder}"`,
       );
     }
-    findings.push(...checkInvocation(dir, at, fields));
+    findings.push(...checkInvocation(dir, folder, fields));
   }
   return findings;
 }
@@ -100,25 +100,93 @@ function disablesImplicitInvocation(yaml) {
   return false;
 }
 
-// A skill is user-invoked when it declares either flag, and then it must
-// declare both: Claude Code reads SKILL.md, Codex reads agents/openai.yaml.
-function checkInvocation(dir, at, fields) {
-  const yamlPath = `${at}/agents/openai.yaml`;
+// Skills that are user-invoked whatever they declare: aw-setup and the phase
+// skills, which the user runs one after another (ADRs 0010 and 0013, and the
+// v1 spec's naming decisions). A user-invoked skill cannot be called by
+// another skill (ADR 0012).
+const USER_INVOKED_SKILLS = [
+  'aw-setup',
+  'aw-intake',
+  'aw-wayfinder',
+  'aw-spec',
+  'aw-slices',
+  'aw-build',
+  'aw-verify',
+  'aw-create-verify',
+  'aw-review',
+  'aw-ship',
+  'aw-retro',
+];
+
+// How a skill declares its invocation: `claude` when SKILL.md sets
+// `disable-model-invocation: true`, `codex` when agents/openai.yaml disables
+// implicit invocation, and `userInvoked` when either is set or the skill is
+// one of USER_INVOKED_SKILLS.
+function invocation(dir, folder, fields) {
+  const yamlPath = `skills/${folder}/agents/openai.yaml`;
   const yamlFile = join(dir, yamlPath);
   const yaml = existsSync(yamlFile) ? readFileSync(yamlFile, 'utf8') : null;
-  const claudeUserInvoked = fields['disable-model-invocation'] === 'true';
-  const codexUserInvoked = yaml !== null && disablesImplicitInvocation(yaml);
+  const claude = fields?.['disable-model-invocation'] === 'true';
+  const codex = yaml !== null && disablesImplicitInvocation(yaml);
+  const userInvoked = claude || codex || USER_INVOKED_SKILLS.includes(folder);
+  return { yamlPath, hasYaml: yaml !== null, claude, codex, userInvoked };
+}
 
-  if (claudeUserInvoked && yaml === null) {
+// A user-invoked skill must declare both flags: Claude Code reads SKILL.md,
+// Codex reads agents/openai.yaml.
+function checkInvocation(dir, folder, fields) {
+  const at = `skills/${folder}`;
+  const { yamlPath, hasYaml, claude, codex, userInvoked } = invocation(dir, folder, fields);
+  if (claude && !hasYaml) {
     return [`${yamlPath}: missing; a user-invoked skill needs one with "policy: allow_implicit_invocation: false"`];
   }
-  if (claudeUserInvoked && !codexUserInvoked) {
+  if (claude && !codex) {
     return [`${yamlPath}: a user-invoked skill must set "policy: allow_implicit_invocation: false"`];
   }
-  if (codexUserInvoked && !claudeUserInvoked) {
+  if (codex && !claude) {
     return [`${at}/SKILL.md: openai.yaml disables implicit invocation, so the frontmatter must set "disable-model-invocation: true"`];
   }
+  if (userInvoked && !claude) {
+    return [`${at}/SKILL.md: aw-setup and the phase skills are user-invoked, so the frontmatter must set "disable-model-invocation: true" and ${yamlPath} "policy: allow_implicit_invocation: false"`];
+  }
   return [];
+}
+
+// The Markdown files under `skills/`, relative and sorted.
+function skillMarkdownFiles(dir) {
+  return kitFiles(dir)
+    .filter((path) => path.startsWith('skills/') && path.endsWith('.md'))
+    .sort();
+}
+
+// Text without its opening `---` frontmatter block, where a quoted `name:`
+// is not a Skill tool call.
+function withoutFrontmatter(text) {
+  const match = text.match(/^---\r?\n[\s\S]*?\r?\n---(\r?\n|$)/);
+  return match ? text.slice(match[0].length) : text;
+}
+
+// A Skill tool call names its skill in double quotes ("aw-tdd"), the form
+// the sync rename also treats as a reference. A user-invoked skill cannot be
+// called that way (ADR 0012): a skill names it as a slash command for the
+// user to run.
+function checkSkillToolCalls(dir) {
+  const userInvoked = new Set(
+    skillFolders(dir).filter((folder) => {
+      const skillFile = join(dir, 'skills', folder, 'SKILL.md');
+      const fields = existsSync(skillFile) ? frontmatter(readFileSync(skillFile, 'utf8')) : null;
+      return invocation(dir, folder, fields).userInvoked;
+    }),
+  );
+  const findings = [];
+  for (const path of skillMarkdownFiles(dir)) {
+    const text = withoutFrontmatter(readFileSync(join(dir, path), 'utf8'));
+    const called = new Set([...text.matchAll(/"(aw-[a-z0-9-]+)"/g)].map((match) => match[1]));
+    for (const name of [...called].filter((candidate) => userInvoked.has(candidate)).sort()) {
+      findings.push(`${path}: "${name}" is user-invoked and cannot be called through the Skill tool; tell the user to run /${name}`);
+    }
+  }
+  return findings;
 }
 
 const PLUGIN_MANIFEST = '.claude-plugin/plugin.json';
@@ -393,35 +461,41 @@ function collapseWhitespace(text) {
 }
 
 const CONFIGURATION_PAGE = 'docs/configuration.md';
-const NEVER_ALLOWED_HEADING = 'Never allowed';
 
-// The configuration page states the never-allowed operations in full. A skill
-// installed through `npx skills` cannot read it, so a file under `skills/`
-// may restate them in its own `## Never allowed` section, which must match.
-function checkNeverAllowed(dir) {
-  const restatements = kitFiles(dir)
-    .filter((path) => path.startsWith('skills/') && path.endsWith('.md'))
-    .sort()
-    .map((path) => ({ path, body: sectionBody(readFileSync(join(dir, path), 'utf8'), NEVER_ALLOWED_HEADING) }))
+// Sections of the configuration page that a file under `skills/` may restate.
+// A skill installed through `npx skills` cannot read the page, so it carries
+// what it needs in its own text, and each restatement must match the page:
+// the never-allowed operations, and the defaults of an unconfigured repo.
+const RESTATED_SECTIONS = ['Never allowed', 'Defaults when unconfigured'];
+
+function checkRestatedSection(dir, skillFiles, heading) {
+  const restatements = skillFiles
+    .map((path) => ({ path, body: sectionBody(readFileSync(join(dir, path), 'utf8'), heading) }))
     .filter(({ body }) => body !== null);
   if (restatements.length === 0) return [];
   const page = join(dir, CONFIGURATION_PAGE);
   const pageExists = existsSync(page);
-  const source = pageExists ? sectionBody(readFileSync(page, 'utf8'), NEVER_ALLOWED_HEADING) : null;
+  const source = pageExists ? sectionBody(readFileSync(page, 'utf8'), heading) : null;
   if (source === null) {
     const paths = restatements.map(({ path }) => path).join(', ');
-    const problem = pageExists ? `has no "## ${NEVER_ALLOWED_HEADING}" section` : 'file is missing';
-    return [`${CONFIGURATION_PAGE}: ${problem}; it is the source for the "${NEVER_ALLOWED_HEADING}" section in ${paths}`];
+    const problem = pageExists ? `has no "## ${heading}" section` : 'file is missing';
+    return [`${CONFIGURATION_PAGE}: ${problem}; it is the source for the "${heading}" section in ${paths}`];
   }
   return restatements
     .filter(({ body }) => collapseWhitespace(body) !== collapseWhitespace(source))
-    .map(({ path }) => `${path}: "${NEVER_ALLOWED_HEADING}" section differs from ${CONFIGURATION_PAGE}`);
+    .map(({ path }) => `${path}: "${heading}" section differs from ${CONFIGURATION_PAGE}`);
+}
+
+function checkRestatedSections(dir) {
+  const skillFiles = skillMarkdownFiles(dir);
+  return RESTATED_SECTIONS.flatMap((heading) => checkRestatedSection(dir, skillFiles, heading));
 }
 
 function validate(dir) {
   const findings = checkSkills(dir);
+  findings.push(...checkSkillToolCalls(dir));
   findings.push(...checkAdapterTemplates(dir));
-  findings.push(...checkNeverAllowed(dir));
+  findings.push(...checkRestatedSections(dir));
   const plugin = readJson(dir, PLUGIN_MANIFEST);
   const marketplace = readJson(dir, MARKETPLACE_MANIFEST);
   if (plugin.finding) findings.push(plugin.finding);

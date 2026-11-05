@@ -31,6 +31,8 @@
     "./skills/aw-source-driven-development",
     "./skills/aw-security-and-hardening",
     "./skills/aw-check-spec",
-    "./skills/aw-setup"
+    "./skills/aw-setup",
+    "./skills/aw-intake",
+    "./skills/aw-spec"
   ]
 }
