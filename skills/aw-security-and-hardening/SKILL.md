@@ -9,7 +9,7 @@ description: Hardens code against vulnerabilities. Use when auditing an input ha
 
 Security-first development practices for any repo, CLIs included. Treat every external input as hostile, every secret as sacred, and every authorization check as mandatory. Security isn't a phase — it's a constraint on every line of code that touches user data, authentication, or external systems.
 
-Security here means what `aw-review`'s Security axis judges: trust boundaries, secrets, dependencies and personal data. The controls for trust boundaries, secrets, dependencies and destructive operations apply in any repo. Controls tagged **(web)** apply when the change touches web code, that is, anything served over HTTP or rendered in a browser; headers, CORS and cookies are the typical ones.
+Security here means what `aw-review`'s Security axis judges: trust boundaries, secrets, dependencies and personal data. Everything on trust boundaries, secrets, dependencies and destructive operations applies in any repo. Lines tagged **(web)** apply when the change touches web code, that is, anything served over HTTP or rendered in a browser; headers, CORS and cookies are the typical ones.
 
 ## In the Kit
 
@@ -24,6 +24,7 @@ During a review, findings follow `aw-review`'s Findings rules: an unchecked chec
 - Storing or transmitting sensitive data
 - Handling secrets
 - Adding or upgrading a dependency
+- Deleting, moving, or overwriting a derived path
 - Integrating with external APIs or services
 - Adding file uploads, webhooks, or callbacks
 - Handling payment or PII data
@@ -53,7 +54,7 @@ If you can't name the trust boundaries for a feature, you're not ready to secure
 
 ### Always Do (No Exceptions)
 
-- **Validate all external input** at the system boundary (API routes, form handlers, CLI arguments)
+- **Validate all external input** at the system boundary (API routes, form handlers)
 - **Parameterize all database queries** — never concatenate user input into SQL
 - **Encode output** to prevent XSS (use framework auto-escaping, don't bypass it) **(web)**
 - **Use HTTPS** for all external communication
@@ -70,8 +71,8 @@ Spec approval is the kit's only fixed human gate (ADR 0013), and this list adds 
 - Storing new categories of sensitive data (PII, payment info)
 - Adding new external service integrations
 - Changing CORS configuration **(web)**
-- Adding file upload handlers **(web)**
-- Modifying rate limiting or throttling **(web)**
+- Adding file upload handlers
+- Modifying rate limiting or throttling
 - Granting elevated permissions or roles
 
 ### Never Do
@@ -113,8 +114,8 @@ Patterns: [Misconfiguration](references/hardening-patterns.md#security-misconfig
 
 ### Input validation and uploads
 
-- Validate at the boundary with a schema: allowlisted shape, lengths, enums, formats. Reject with 422 and structured details; downstream code uses only the parsed, typed value.
-- Uploads: allowlist MIME types, cap size, verify content (magic bytes) when it matters. The extension proves nothing. **(web)**
+- Validate at the boundary with a schema: allowlisted shape, lengths, enums, formats. Reject with 422 **(web)** and structured details; downstream code uses only the parsed, typed value.
+- Uploads: allowlist MIME types, cap size, verify content (magic bytes) when it matters. The extension proves nothing.
 
 Patterns: [Schema validation](references/hardening-patterns.md#schema-validation-at-boundaries), [File upload](references/hardening-patterns.md#file-upload-safety).
 
@@ -132,7 +133,7 @@ Why the check is weaker than it reads (marker self-attestation, check/use races)
 
 ### Rate limiting
 
-Limit the API generally and auth endpoints strictly (about 10 attempts per 15 minutes). Once more than one process serves traffic, in-memory counters silently become `max × instances`, or never fire on serverless: back the limiter with a shared store. **(web)**
+Limit the API generally and auth endpoints strictly (about 10 attempts per 15 minutes). Once more than one process serves traffic, in-memory counters silently become `max × instances`, or never fire on serverless: back the limiter with a shared store.
 
 Pattern: [Rate limiting](references/hardening-patterns.md#rate-limiting).
 
@@ -175,7 +176,7 @@ Pattern: [LLM output handling](references/hardening-patterns.md#llm-output-handl
 
 ## Review Checklist
 
-Walk `references/security-checklist.md` against the trust boundaries the change touches: it covers authentication, authorization, input, data protection and privacy, headers and CORS, dependencies and supply chain, AI/LLM, and error handling, plus the OWASP quick-reference tables. It is worded for web applications; in other code, take the items that bear on those boundaries.
+Walk `references/security-checklist.md` against what the change touches: it covers authentication, authorization, input, data protection and privacy, headers and CORS, dependencies and supply chain, AI/LLM, and error handling, plus the OWASP quick-reference tables. It is worded for web applications; in other code, take the items on trust boundaries, secrets, dependencies, personal data and destructive operations.
 
 ## Common Rationalizations
 
@@ -200,7 +201,7 @@ Walk `references/security-checklist.md` against the trust boundaries the change 
 - Secrets in source code or commit history
 - API endpoints without authentication or authorization checks
 - Missing CORS configuration or wildcard (`*`) origins **(web)**
-- No rate limiting on authentication endpoints, or an in-memory limiter in front of more than one instance **(web)**
+- No rate limiting on authentication endpoints, or an in-memory limiter in front of more than one instance
 - Stack traces or internal errors exposed to users
 - Dependencies with known critical vulnerabilities, competing lockfiles at one installation boundary, non-reproducible installs, or blanket-approved scripts
 - Server fetches user-supplied URLs without an allowlist (SSRF)
@@ -221,7 +222,7 @@ After implementing security-relevant code:
 - [ ] Authentication and authorization checked on every protected endpoint
 - [ ] Security headers present in response, shown by a request to the running app **(web)**
 - [ ] Error responses don't expose internal details
-- [ ] Rate limiting active on auth endpoints, backed by a shared store when more than one instance serves traffic **(web)**
+- [ ] Rate limiting active on auth endpoints, backed by a shared store when more than one instance serves traffic
 - [ ] Server-side URL fetches validated against an allowlist (no SSRF)
 - [ ] LLM/model output validated and encoded before use (if AI features present)
 - [ ] Personal data is classified, minimized to a stated purpose, and has a retention limit

@@ -1,6 +1,6 @@
-// Seam: aw-security-and-hardening's public contract, the text aw-review loads
+// Seam 3: aw-security-and-hardening's public contract, the text aw-review loads
 // and hands to the Security axis's subagent, plus its NOTICE.md row. These
-// tests hold the contract issue #57 names.
+// tests hold the contract ticket #57 names.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -67,11 +67,12 @@ test('its scope is any repo, not web applications', () => {
   assert.match(section('## Overview'), /trust boundaries, secrets, dependencies and destructive operations/);
 });
 
-// Each of these controls applies only to web code, so its line carries the tag
-// the overview defines.
-test('web-only controls are tagged, and the core ones are not', () => {
+// Each of these lines applies only to web code, so it carries the tag the
+// overview defines. Uploads and rate limiting also protect services that are not
+// web code, so they stay untagged.
+test('web-only lines are tagged, and the core ones are not', () => {
   assert.match(section('## Overview'), /tagged \*\*\(web\)\*\* apply when the change touches web code/);
-  const tagged = (text) => assert.ok(
+  const assertTagged = (text) => assert.ok(
     skill.split('\n').some((line) => line.includes(text) && line.includes('**(web)**')),
     `no line with "${text}" is tagged`,
   );
@@ -88,11 +89,12 @@ test('web-only controls are tagged, and the core ones are not', () => {
     'CORS restricted to an explicit origin list',
     'Missing CORS configuration',
     'Security headers present in response',
+    'Reject with 422',
   ]) {
-    tagged(text);
+    assertTagged(text);
   }
   for (const line of skill.split('\n')) {
-    if (/\*\*(Validate all external input|Parameterize all database queries|Never commit secrets)/.test(line)) {
+    if (/\*\*(Validate all external input|Parameterize all database queries|Never commit secrets)|upload|rate limit/i.test(line)) {
       assert.doesNotMatch(line, /\(web\)/);
     }
   }
@@ -100,9 +102,9 @@ test('web-only controls are tagged, and the core ones are not', () => {
 
 test('the review checklist is scoped to the boundaries, since its reference is worded for the web', () => {
   const body = section('## Review Checklist');
-  assert.doesNotMatch(body, /sign-off/);
   assert.match(body, /`references\/security-checklist\.md`/);
   assert.match(body, /worded for web applications/);
+  assert.match(body, /trust boundaries, secrets, dependencies, personal data and destructive operations/);
 });
 
 test('it asks for no manual browser check', () => {
@@ -117,7 +119,7 @@ test('the dependency audit is a run or a check level, tied to no release and add
   assert.match(body, /adds no phase and no hook \(ADR 0009\)/);
 });
 
-test('the post-implementation list is a self-check, not a sign-off of its own', () => {
+test('the post-implementation list is a self-check, not a gate of its own', () => {
   assert.doesNotMatch(skill, /^## Verification$/m);
   assert.match(section('## Self-Check').trim(), /^After implementing security-relevant code/);
   assert.doesNotMatch(skill, /sign-off/);
@@ -198,7 +200,7 @@ test('its NOTICE row stays an adaptation and says what it takes and what it chan
   for (const taken of ['threat-modeling process', 'hardening controls', 'rationalizations', 'red flags', 'both references']) {
     assert.ok(row.includes(taken), `does not say it takes the ${taken}`);
   }
-  for (const changed of ['`aw-review`', 'Ask First', 'web', 'Findings rules', 'dependency audit']) {
+  for (const changed of ['`aw-review`', 'Ask First', 'web', 'Findings rules', 'dependency audit', 'Self-Check', 'browser check']) {
     assert.ok(row.includes(changed), `does not say what it changes about ${changed}`);
   }
 });
