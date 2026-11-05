@@ -4,7 +4,7 @@ How kit skills find a repo's configuration, what they may do with it, and what t
 
 ## Finding the adapters
 
-`/aw-setup` writes three adapters and the domain doc to `docs/agents/`, and an `## Agent skills` block that points to them, in `AGENTS.md`, or in `CLAUDE.md` (root or `.claude/`) when only that exists. A skill looks for the block in those files and follows its pointers; it never names a `docs/agents/` file on its own.
+`/aw-setup` writes three adapters and the domain doc to `docs/agents/`, and an `## Agent skills` block that points to them, in `AGENTS.md`, or in `CLAUDE.md` (root or `.claude/`) when only that exists. A skill looks for the block in those files and follows its pointers. No skill names a `docs/agents/` file directly, except a skill that writes an adapter, which has to name the path it writes (ADR 0006). Two skills do: `aw-setup`, which writes the files below and first looks for earlier ones and for Pocock's `issue-tracker.md`, and `aw-wayfinder`, which offers a local-markdown tracker when the repo has none and writes it to `docs/agents/tracker.md` when no block points to a tracker adapter. Once written, an adapter is reached through the block like any other.
 
 | Subsection | File | Holds |
 | --- | --- | --- |
