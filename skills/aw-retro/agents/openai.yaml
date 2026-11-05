@@ -1,0 +1,5 @@
+interface:
+  display_name: "Retro"
+  short_description: "Turn repeated session mistakes into proven controls"
+policy:
+  allow_implicit_invocation: false
