@@ -277,7 +277,7 @@ test('a verify: entry with its result in parentheses resolves to its path', () =
 
 test('a verify: entry whose result file does not exist is reported by its path alone', () => {
   assertOneFinding(
-    runOn(withEvidence('AC-2', 'verify: `docs/specs/login/verify/ac-9.md` (failed)')),
+    runOn(withEvidence('AC-2', 'verify: `docs/specs/login/verify/ac-9.md` (passed)')),
     finding(/AC-2: verify path "docs\/specs\/login\/verify\/ac-9\.md" does not exist$/),
   );
 });
@@ -466,4 +466,23 @@ test('an implemented spec with the verify results aw-verify records passes', () 
     'docs/specs/login/verify/ac-1.md': '# AC-1\n\nResult: passed\n',
     'docs/specs/login/verify/ac-3.md': '# AC-3\n\nResult: inconclusive\n',
   }));
+});
+
+// A spec ships as implemented only when its evidence proves every criterion
+// (#16): a failed verify result proves the criterion is not met, and an
+// inconclusive one proves nothing, so it needs a test: or manual: entry
+// beside it, as aw-verify reports.
+test('an implemented spec with a failed verify result is reported', () => {
+  const repo = withEvidence('AC-2', 'verify: `docs/specs/login/verify/ac-2.md` (failed)');
+
+  assertOneFinding(runOn(repo), finding(/AC-2: verify result "docs\/specs\/login\/verify\/ac-2\.md" failed/));
+});
+
+test('an implemented spec with an inconclusive verify result and no other evidence is reported', () => {
+  const repo = withEvidence('AC-2', 'verify: `docs/specs/login/verify/ac-2.md` (inconclusive)');
+
+  assertOneFinding(
+    runOn(repo),
+    finding(/AC-2: verify result "docs\/specs\/login\/verify\/ac-2\.md" is inconclusive.*test: or manual:/),
+  );
 });

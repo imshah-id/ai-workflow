@@ -100,7 +100,14 @@ const repoPath = (dir, path) => join(dir, ...path.split(/[\\/]+/));
 
 // The verify result aw-verify records after a verify path, as in
 // `verify: <path> (passed)`. It is not part of the path.
-const VERIFY_RESULT_SUFFIX = /\s+\((?:passed|failed|inconclusive)\)$/;
+const VERIFY_RESULT_SUFFIX = /\s+\((passed|failed|inconclusive)\)$/;
+
+// A `verify:` entry's path and its recorded result, or a null result when the
+// entry records none, such as the planned folder aw-build writes.
+function verifyEntry(value) {
+  const result = value.match(VERIFY_RESULT_SUFFIX)?.[1] ?? null;
+  return { path: value.replace(VERIFY_RESULT_SUFFIX, ''), result };
+}
 
 // How each kind of evidence resolves: a finding message, or null when the
 // entry resolves.
@@ -113,7 +120,7 @@ const RESOLVES = {
       : `test file "${path}" does not mention ${id}`;
   },
   verify(dir, id, value) {
-    const path = value.replace(VERIFY_RESULT_SUFFIX, '');
+    const { path } = verifyEntry(value);
     return path && existsSync(repoPath(dir, path)) ? null : `verify path "${path}" does not exist`;
   },
   manual(dir, id, reason) {
@@ -131,6 +138,23 @@ function checkEvidence(dir, rows) {
         ? `evidence "${value}" must start with test:, verify: or manual:`
         : RESOLVES[kind](dir, id, value);
       if (problem) findings.push(`${id}: ${problem}`);
+    }
+    findings.push(...checkVerifyResults(id, entries));
+  }
+  return findings;
+}
+
+// An implemented spec proves every criterion (#16): a failed verify result
+// shows the criterion is not met, and an inconclusive one shows nothing, so
+// it needs a test: or manual: entry in the same row.
+function checkVerifyResults(id, entries) {
+  const otherEvidence = entries.some(({ kind }) => kind === 'test' || kind === 'manual');
+  const findings = [];
+  for (const { path, result } of entries.filter(({ kind }) => kind === 'verify').map(({ value }) => verifyEntry(value))) {
+    if (result === 'failed') {
+      findings.push(`${id}: verify result "${path}" failed; an implemented spec cannot hold a failed criterion`);
+    } else if (result === 'inconclusive' && !otherEvidence) {
+      findings.push(`${id}: verify result "${path}" is inconclusive; add test: or manual: evidence to the row`);
     }
   }
   return findings;

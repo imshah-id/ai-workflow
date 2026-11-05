@@ -38,6 +38,7 @@
     "./skills/aw-build",
     "./skills/aw-create-verify",
     "./skills/aw-verify",
-    "./skills/aw-review"
+    "./skills/aw-review",
+    "./skills/aw-ship"
   ]
 }
