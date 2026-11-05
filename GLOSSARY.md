@@ -137,15 +137,15 @@ _Avoid_: sub-issue, child ticket
 ### The epic route
 
 **Map**:
-The one ticket in which `aw-wayfinder` charts an epic-route effort: its destination and notes in the body, and an index of the decisions made, the fog and what is out of scope, kept current by map updates. Its decision tickets are its children. It is an index, not a store: a decision lives only in its ticket.
+The one ticket in which `aw-wayfinder` charts an epic-route effort: its destination and notes in the body, and an index of its open decision tickets, the decisions made, the fog and what is out of scope, kept current by map updates. Its decision tickets are linked as part of it. It is an index, not a store: a decision lives only in its ticket.
 _Avoid_: epic, roadmap, decision map
 
 **Map update**:
-A comment on the map that holds its whole current Decisions so far, Not yet specified and Out of scope sections, and, once the map clears, its deliverables. The latest one is the map's current state, since the canonical operations cannot rewrite a ticket's body.
+A comment on the map that holds its whole current Tickets, Decisions so far, Not yet specified and Out of scope sections, and, once the map clears, its deliverables. The latest one is the map's current state, since the canonical operations cannot rewrite a ticket's body.
 _Avoid_: map edit, status update
 
 **Decision ticket**:
-A child ticket of a map that asks one question, sized to one session, whose answer is a decision, never a piece of the build. Its type is grilling, prototype, research or task, and it is HITL or AFK.
+A ticket linked as part of a map that asks one question, sized to one session, whose answer is a decision, never a piece of the build. Its type is grilling, prototype, research or task, and it is HITL or AFK.
 _Avoid_: wayfinder ticket, implementation ticket, slice
 
 **Destination**:
