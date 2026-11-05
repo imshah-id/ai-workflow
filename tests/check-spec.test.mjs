@@ -376,10 +376,11 @@ test('a draft as aw-spec writes it, before slices and tests exist, passes', () =
   assertNoFindings(runOn({ [SPEC]: specText({ frontmatter: 'status: draft\n', parts }) }));
 });
 
-// The approved spec aw-slices leaves: slices riskiest first, each naming the
-// criteria it covers, AFK or HITL, its blocking edges and its mirror ticket;
-// an expand–contract sequence; the agreed seams in Test strategy; and
-// planned evidence whose files do not exist yet.
+// The approved spec in the shape aw-slices writes it: numbered slices with
+// their criteria, AFK or HITL, sub-items for what each delivers, its blockers
+// and its mirror ticket; the agreed seams in Test strategy; and planned
+// evidence whose files do not exist yet. The check has no rules on the slice
+// plan's content, so this pins only that the shape raises no finding.
 test('an approved spec with the slice plan and Test strategy aw-slices writes passes', () => {
   const parts = sections();
   parts['Slice plan'] =
@@ -391,10 +392,14 @@ test('an approved spec with the slice plan and Test strategy aw-slices writes pa
     '   - Delivers: a registered user signs in and reaches the dashboard.\n' +
     '   - Blocked by: 1.\n' +
     '   - Mirror: #14\n' +
-    '3. Contract: drop the cookie (AC-1, AC-2). AFK.\n' +
-    '   - Delivers: a wrong password shows an error; no caller reads the cookie.\n' +
+    '3. Migrate: the error page reads the token (AC-2). AFK.\n' +
+    '   - Delivers: a wrong password shows an error, read from the token.\n' +
     '   - Blocked by: 2.\n' +
-    '   - Mirror: #15\n';
+    '   - Mirror: #15\n' +
+    '4. Contract: drop the cookie (AC-1). AFK.\n' +
+    '   - Delivers: a registered user still reaches the dashboard; no caller reads the cookie.\n' +
+    '   - Blocked by: 3.\n' +
+    '   - Mirror: #16\n';
   parts['Test strategy'] =
     'Agreed with the user:\n\n' +
     '- **The HTTP endpoint** (`POST /session`): catches AC-1 and AC-2; misses the rendered page.\n' +
