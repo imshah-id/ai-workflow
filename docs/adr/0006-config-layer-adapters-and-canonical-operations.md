@@ -1,6 +1,6 @@
 # Kit skills speak canonical operations; per-repo adapters translate them
 
-Kit skills never name a concrete tool. They request **canonical operations**, and per-repo files under `docs/agents/` translate those operations for the repo's actual tooling. The files are reached through an `## Agent skills` block in `AGENTS.md`, or in `CLAUDE.md` when only that exists. No skill names a `docs/agents/` file directly.
+Kit skills never name a concrete tool. They request **canonical operations**, and per-repo files under `docs/agents/` translate those operations for the repo's actual tooling. The files are reached through an `## Agent skills` block in `AGENTS.md`, or in `CLAUDE.md` when only that exists. No skill names a `docs/agents/` file directly, except a skill that installs an adapter, which has to name the path it writes. Two skills do: `aw-setup`, which writes the files below and looks for earlier ones first, and `aw-wayfinder`, which offers a local-markdown tracker when the repo has none and writes it to `docs/agents/tracker.md` when the block has no `### Tracker` pointer. `aw-wayfinder` works when installed alone, so it cannot leave this to `aw-setup`. Once installed, an adapter is reached through the block like any other.
 
 | File | Holds |
 | --- | --- |
