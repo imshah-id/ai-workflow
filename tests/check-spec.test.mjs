@@ -366,3 +366,12 @@ test('a spec.md that is a folder is reported, not a crash', () => {
 
   assertOneFinding(runOn(repo), /^docs\/specs\/logout: .*spec\.md/);
 });
+
+// The draft aw-spec writes: no ticket line, the slice plan left to aw-slices,
+// planned evidence whose files do not exist yet, and no open questions.
+test('a draft as aw-spec writes it, before slices and tests exist, passes', () => {
+  const parts = sections();
+  parts['Slice plan'] = 'Written by `/aw-slices` after spec approval.\n';
+
+  assertNoFindings(runOn({ [SPEC]: specText({ frontmatter: 'status: draft\n', parts }) }));
+});

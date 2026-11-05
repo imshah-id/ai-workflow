@@ -1,0 +1,5 @@
+interface:
+  display_name: "Intake"
+  short_description: "Classify a task and run its pre-step"
+policy:
+  allow_implicit_invocation: false

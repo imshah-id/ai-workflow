@@ -1,0 +1,5 @@
+interface:
+  display_name: "Spec"
+  short_description: "Write a spec and gate it on approval"
+policy:
+  allow_implicit_invocation: false

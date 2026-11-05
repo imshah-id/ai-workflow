@@ -401,3 +401,57 @@ test('never-allowed restatements that match the configuration page up to whitesp
 
   assertNoFindings(runOn(kit));
 });
+
+// The defaults an unconfigured repo runs on are stated in the `## Defaults
+// when unconfigured` section of docs/configuration.md. A phase skill carries
+// them in its own text (it cannot read the page when installed alone), and
+// its restatement must match the page, up to whitespace, like the
+// never-allowed list.
+
+const DEFAULTS = 'When an adapter is missing, say once: "using defaults, run `/aw-setup`". Tracker: `none`.';
+
+function defaultsPage(body = DEFAULTS) {
+  return neverAllowedPage().replace('## Defaults\n\nNone.', `## Defaults when unconfigured\n\n${body}`);
+}
+
+test('a defaults restatement in a skill that differs from the configuration page is reported', () => {
+  const kit = validKit();
+  kit['docs/configuration.md'] = defaultsPage();
+  kit['skills/aw-beta/SKILL.md'] += `\n## Defaults when unconfigured\n\n${DEFAULTS.replace('`none`', '`local`')}\n`;
+
+  assertOneFinding(
+    runOn(kit),
+    /^skills\/aw-beta\/SKILL\.md: "Defaults when unconfigured" section differs from docs\/configuration\.md$/,
+  );
+});
+
+// Phase skills and aw-setup are user-invoked (ADR 0001). The user-invoked
+// check above only catches a skill that declares one flag and not the other,
+// so a phase skill is also reported when it declares neither.
+
+test('a phase skill that declares neither invocation flag is reported', () => {
+  const kit = validKit();
+  kit['.claude-plugin/plugin.json'].skills.push('./skills/aw-spec');
+  kit['skills/aw-spec/SKILL.md'] = '---\nname: aw-spec\ndescription: Write the spec.\n---\n\nBody.\n';
+
+  assertOneFinding(runOn(kit), /^skills\/aw-spec\/SKILL\.md: .*phase skill.*disable-model-invocation: true/);
+});
+
+// A user-invoked skill cannot be called through the Skill tool, so no skill
+// may name one the way a Skill tool call does, in double quotes (ADR 0001). A
+// phase skill tells the user to run the next one as a slash command instead.
+
+test('a skill that calls a user-invoked skill through the Skill tool is reported', () => {
+  const kit = validKit();
+  kit['skills/aw-alpha/SKILL.md'] += '\nWhen done, call the Skill tool with "aw-beta".\n';
+
+  assertOneFinding(runOn(kit), /^skills\/aw-alpha\/SKILL\.md: .*"aw-beta" is user-invoked.*\/aw-beta/);
+});
+
+test('calling a model-invoked skill, or naming a user-invoked one as a slash command, passes', () => {
+  const kit = validKit();
+  kit['skills/aw-beta/SKILL.md'] += '\nCall the Skill tool with "aw-alpha". Then tell the user to run `/aw-beta`.\n';
+  kit['skills/aw-beta/SKILL.md'] = kit['skills/aw-beta/SKILL.md'].replace('name: aw-beta', 'name: "aw-beta"');
+
+  assertNoFindings(runOn(kit));
+});

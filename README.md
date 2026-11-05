@@ -6,7 +6,7 @@ Claude Code is the reference harness. Other harnesses (Codex, OpenCode, Cursor a
 
 The vocabulary is in [`GLOSSARY.md`](GLOSSARY.md) and the design decisions in [`docs/adr/`](docs/adr/).
 
-> Status: pre-release. The repo is a valid plugin and skills source. It ships eleven copies of Matt Pocock's skills and two of Addy Osmani's so far, listed in [`NOTICE.md`](NOTICE.md), and two kit skills: `aw-check-spec`, the spec template and the script that checks specs under `docs/specs/`, and `aw-setup`, which configures a repo for the workflow.
+> Status: pre-release. The repo is a valid plugin and skills source. It ships eleven copies of Matt Pocock's skills and two of Addy Osmani's so far, listed in [`NOTICE.md`](NOTICE.md), and four kit skills: `aw-check-spec`, the spec template and the script that checks specs under `docs/specs/`; `aw-setup`, which configures a repo for the workflow; `aw-intake`, which classifies a task's type and route and runs its pre-step; and `aw-spec`, which writes the spec and holds it at `draft` until you approve it.
 
 ## Install
 
@@ -83,7 +83,9 @@ claude plugin validate . --strict    # plugin and marketplace manifests
 
 - every skill folder under `skills/` carries the `aw-` prefix and its `name:` matches the folder;
 - every skill is listed in `.claude-plugin/plugin.json`, and every listed skill exists;
-- user-invoked skills carry both `disable-model-invocation: true` and an `agents/openai.yaml` with `policy: allow_implicit_invocation: false`. A skill that declares either flag counts as user-invoked, so a skill meant to be user-invoked that declares neither is not caught;
+- user-invoked skills carry both `disable-model-invocation: true` and an `agents/openai.yaml` with `policy: allow_implicit_invocation: false`. A skill that declares either flag counts as user-invoked, and so do `aw-setup` and the phase skills (`aw-intake`, `aw-wayfinder`, `aw-spec`, `aw-slices`, `aw-build`, `aw-verify`, `aw-create-verify`, `aw-review`, `aw-ship`, `aw-retro`) whatever they declare;
+- no Markdown file under `skills/` names a user-invoked skill in double quotes, the way a Skill tool call does (`"aw-spec"`): a user-invoked skill cannot be called, so a skill tells the user to run it (`/aw-spec`);
+- a `## Never allowed` or `## Defaults when unconfigured` section in a Markdown file under `skills/` matches the section of the same name in `docs/configuration.md`, up to whitespace;
 - every adapter template in a skill's `adapters/` folder (`<kind>.md` or `<kind>-<variant>.md`, for the kinds `tracker`, `vcs` and `checks`) has an `## Operations` table with one row per canonical operation of its kind, each saying how it is performed, with `read` for read operations and `write` or `draft` for write operations, and no operation outside the vocabulary; tracker and VCS templates declare a `**Default access:**`, and checks templates give a command for `fast`, `task` and `full` in a `## Levels` table;
 - the version in `plugin.json` is plain semver `X.Y.Z` and matches the marketplace entry;
 - every copy passes the sync `check` (below), which also requires its `LICENSE.upstream`;
