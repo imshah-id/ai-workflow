@@ -4,5 +4,5 @@ The repo is MIT-licensed, copyright `samfaina`. Each copy carries its upstream l
 
 ## Consequences
 
-- Adapted skills are credited in `NOTICE.md` but do not carry the upstream license text.
+- Adapted skills are credited in `NOTICE.md` but do not carry the upstream license text, with one exception: an adaptation that keeps almost all of its upstream's text also carries `LICENSE.upstream`. It installs one folder at a time too, and MIT requires the copyright notice to accompany substantial portions. `aw-security-and-hardening` is the case that motivates this.
 - Before anything is copied verbatim from an upstream whose license has not been read at its source, a `research` ticket must confirm the license. At the time of writing that applies to pstack.

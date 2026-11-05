@@ -29,13 +29,10 @@
       "reason": "The latest commit on main when researched for #2 (docs/research/addy-osmani-agent-skills.md), two commits after tag 0.6.15. The copied skills, the shared checklist and the license are identical at both.",
       "license": "LICENSE",
       "skills": {
-        "source-driven-development": "skills/source-driven-development",
-        "security-and-hardening": {
-          "path": "skills/security-and-hardening",
-          "shared": [
-            "references/security-checklist.md"
-          ]
-        }
+        "source-driven-development": "skills/source-driven-development"
+      },
+      "replaced": {
+        "security-and-hardening": "aw-security-and-hardening"
       }
     }
   }

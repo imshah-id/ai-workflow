@@ -11,7 +11,7 @@ Every skill the kit ships is named `aw-<name>`: kit skills (`aw-spec`, `aw-build
 
 - A copy is no longer byte-identical to its upstream. Its text changes only by the **mechanical transform**, which has three parts:
   - The rename: the folder, the `name:` field, and references to other copied skills (for example `aw-tdd` calls the Skill tool with `aw-codebase-design`).
-  - Relocating shared upstream files the copy points to outside its own folder, such as Addy Osmani's repo-level `references/security-checklist.md`. They move into the copy's folder and the paths that point at them are rewritten, because `npx skills` installs one folder at a time (ADR 0002) and would leave them behind.
+  - Relocating shared upstream files the copy points to outside its own folder, as a skill's path to a repo-level `references/` file would. They move into the copy's folder and the paths that point at them are rewritten, because `npx skills` installs one folder at a time (ADR 0002) and would leave them behind. No copy relocates one today: `aw-security-and-hardening`, which relocated Addy Osmani's `references/security-checklist.md`, is now an adaptation.
   - Mapping replaced skills: a reference to an upstream skill the kit does not copy but replaces with a kit skill of its own, such as Pocock's `code-review`, which `aw-review` replaces, points at the kit skill instead. Each upstream in `upstreams.json` lists these under `replaced`. Once Pocock's plugin is disabled in a repo, as `/aw-setup` offers, a copy must not point to a skill that is missing there, and a hand edit would make the copy an adaptation.
 
   The sync tooling applies the transform and checks that the upstream text plus the transform equals the copy. Any other edit turns the skill into an adaptation.

@@ -4,8 +4,10 @@
 //
 //   install  clones each upstream in upstreams.json at its pin, writes the
 //            copies with the mechanical transform applied and LICENSE.upstream
-//            added, and rewrites upstreams.lock.json. Needs the network unless
-//            every upstream is a local directory.
+//            added, and rewrites upstreams.lock.json. Fails, writing nothing,
+//            when a copy refers to a skill of its upstream that the kit
+//            neither copies nor replaces. Needs the network unless every
+//            upstream is a local directory.
 //   check    verifies offline that each copy equals its upstream at the pin
 //            plus the mechanical transform, against upstreams.lock.json.
 //            Prints one finding per line as `<path>: <message>`.
