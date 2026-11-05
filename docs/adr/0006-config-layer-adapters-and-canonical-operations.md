@@ -7,7 +7,7 @@ Kit skills never name a concrete tool. They request **canonical operations**, an
 | `tracker.md` | Tracker kind, conventions, how each tracker operation is done, ticket states, access |
 | `vcs.md` | Branch naming, commit convention, diff base, push, review host (PR, MR or none), access |
 | `checks.md` | The command for each check level: `fast`, `task`, `full` |
-| `domain.md` | Where the glossary and ADRs live (Matt Pocock's file, unchanged) |
+| `domain.md` | Where the glossary and ADRs live (Matt Pocock's file; only the copied skills it mentions are renamed, with the `aw-` prefix of ADR 0001) |
 
 The tracker and the VCS are separate files because they vary independently, for example Linear tickets with GitHub pull requests.
 
@@ -17,11 +17,12 @@ The canonical operations form a closed vocabulary:
 - **VCS:** `start-branch`, `commit`, `diff-base`, `push`, `open-review`, `merge`
 - **Checks:** `run-check <level>`
 
-Each write operation has one of two access levels: `write`, where the agent performs it, or `draft`, where the agent writes the exact text or command to `.aw/drafts/` and a person applies it. Reading is always allowed. Each file declares a default level and optional per-operation overrides. Force-pushing, deleting branches and pushing directly to protected branches are never allowed and are not configurable. When `merge` is at `write`, it is still conditional (ADR 0013).
+Each write operation has one of two access levels: `write`, where the agent performs it, or `draft`, where the agent writes the exact text or command to `.aw/drafts/` and a person applies it. Reading is always allowed. The tracker and VCS files each have a **Default access** line, and the Access column of their Operations table gives each write operation's effective level; read operations are marked `read`. A row whose Access differs from the default is an override. Force-pushing, deleting branches and pushing directly to protected branches are never allowed and are not configurable. When `merge` is at `write`, it is still conditional (ADR 0013).
 
 ## Considered Options
 
 - **Three levels: read, draft, write** (the initial draft): rejected. Under `read`, a write operation either leaves a draft, which makes it the same as `draft`, or silently does nothing, which is worse.
+- **A default level plus a separate list of per-operation overrides** (the earlier wording of this ADR): rejected. With the effective level on every row, the table shows each operation's level at a glance, and `scripts/validate-kit.mjs` can check every row.
 - **A `triage-labels.md` file** as in Pocock's setup: rejected. Ticket states live in `tracker.md`, and `triage` is not part of the kit.
 
 ## Consequences
