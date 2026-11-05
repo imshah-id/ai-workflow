@@ -98,6 +98,22 @@ _Avoid_: coverage matrix, test plan
 A vertical piece of a spec that can be built and verified on its own and covers at least one acceptance criterion. Slices are listed in the spec's slice plan.
 _Avoid_: task, step, subtask, ticket
 
+**Tracer bullet**:
+The shape of a slice: a narrow but complete path through every layer the change touches (data, logic, interface, tests), never one layer on its own. The slices of an expand–contract are the one exception.
+_Avoid_: end-to-end slice, full-stack slice
+
+**AFK**:
+The mark that says an agent can build and verify a slice with no person involved.
+_Avoid_: autonomous, agent-only
+
+**HITL**:
+The mark that says a slice needs a person during it: a judgement on a design or UI, credentials or an account only they have, or a check only they can make.
+_Avoid_: manual slice, human task
+
+**Expand–contract**:
+The sequence of slices for a wide refactor, one mechanical change too wide for any vertical slice of it to land green: expand adds the new form beside the old, migrate moves the callers over in batches, and contract removes the old form once no caller is left.
+_Avoid_: parallel change, phased migration
+
 **Mirror ticket**:
 A ticket published from a slice so that the tracker can follow it. The slice stays the source of truth.
 _Avoid_: sub-issue, child ticket
