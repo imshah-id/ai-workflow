@@ -59,7 +59,7 @@ Done when each operation has a command or procedure with its source, and the fea
 
 ### 3. Write the verify skill
 
-Write `.claude/skills/verify-<app>/SKILL.md` from [`VERIFY-TEMPLATE.md`](VERIFY-TEMPLATE.md), filling every placeholder and deleting none of its sections. Keep its `name:` as `verify-<app>`, with no `aw-` prefix, and leave it model-invoked, so that `/aw-verify` and other skills can use it. Put helper scripts it needs, such as a wait-until-ready loop, in the same folder and call them by relative path.
+Write `.claude/skills/verify-<app>/SKILL.md` from [`VERIFY-TEMPLATE.md`](VERIFY-TEMPLATE.md), filling every placeholder and deleting none of its sections. Keep its `name:` as `verify-<app>`, with no `aw-` prefix. `/aw-verify` reads it from that path; leave it model-invoked as well, so that an agent can check a change on the real app outside `/aw-verify`. Put helper scripts it needs, such as a wait-until-ready loop, in the same folder and call them by relative path.
 
 Write nothing else into the repo: the verify skill must work from what is already there.
 
@@ -70,7 +70,7 @@ Done when the skill's every section is filled, each command names its source, an
 Follow the skill you wrote, as `/aw-verify` will, with nothing from your own exploration:
 
 1. **Start** the app and **Diagnose** it until it reports healthy.
-2. Run the skill's **smoke journey**: drive at least one feature from the feature map and **Observe** the result the map says to expect.
+2. Run the skill's **smoke journey**, the shortest run that proves the skill works: drive at least one feature from the feature map and **Observe** the result the map says to expect.
 3. **Clean up**, then check that nothing it started is still running and no port it used is still held.
 
 When a step fails, fix the skill, not the app, and run all three again from the start. After three failed runs, or when the fix needs a change to the app, stop: report the failing step and its output, and leave the skill where it is for the user to decide.
@@ -81,7 +81,9 @@ Done when one run, start to clean-up, followed the skill as written and passed.
 
 The verify skill is committed with the project. When the working tree holds changes this skill did not make, ask the user whether to commit, set aside or keep them first: they must not land in this commit.
 
-Never commit on a protected branch (the base branch or another the VCS adapter names). When the current branch is protected, use `start-branch` to create one, named by the adapter's branch naming, such as `chore/verify-<app>`. Then use `commit` for the skill's folder alone, with a message in the VCS adapter's commit convention, such as `chore: add the verify-<app> skill`. At `draft`, write the draft and tell the user the path.
+Never commit on a protected branch (the base branch or another the VCS adapter names). When the current branch is protected, use `start-branch` to create one, named by the adapter's branch naming, such as `chore/verify-<app>`. When `start-branch` is at `draft`, write the draft, tell the user to create the branch with it and commit the skill's folder there, and stop: the commit would otherwise land on the protected branch.
+
+Then use `commit` for the skill's folder alone, with a message in the VCS adapter's commit convention, such as `chore: add the verify-<app> skill`. At `draft`, write the draft and tell the user the path.
 
 The commit stays local: `push` and `open-review` belong to `/aw-ship`.
 

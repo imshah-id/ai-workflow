@@ -160,6 +160,10 @@ _Avoid_: route list, sitemap
 The run that proves one acceptance criterion on the real app through the verify skill: set up its "given", perform its "when", and observe its "then". Called a journey for short in the verify skills.
 _Avoid_: scenario, e2e test
 
+**Smoke journey**:
+The shortest run through a verify skill that proves the skill itself works: start the app, check it is healthy, drive one feature, observe it, clean up. `aw-create-verify` runs it once before finishing.
+_Avoid_: smoke test, sanity check
+
 **Verify result**:
-The outcome of one verify journey that proves an acceptance criterion on the real app: passed, failed or inconclusive. `aw-verify` writes it to a file under the spec's `verify/` folder and names it, with its outcome, in Traceability.
+What one verify journey found: passed, failed or inconclusive. `aw-verify` writes it to a file under the spec's `verify/` folder and names it, with the result, in Traceability.
 _Avoid_: test result, verification status

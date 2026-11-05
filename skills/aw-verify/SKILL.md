@@ -8,7 +8,7 @@ disable-model-invocation: true
 
 Prove each acceptance criterion of a spec on the **real app**, through the repo's verify skill at `.claude/skills/verify-<app>/` (ADR 0011), and record each result as `verify:` evidence in the spec's Traceability. The result files under `docs/specs/<slug>/verify/` and the Traceability rows that point to them are this phase's artifact.
 
-This skill observes; it never fixes. It changes no code and no test, and edits only the Traceability rows of the spec. A criterion the app does not meet is recorded as failed and reported, never patched here.
+This skill observes; it never fixes. It changes no code and no test. In the spec it edits only the Traceability rows, and the done marker of a slice whose criterion failed, which it sets back to `[ ]` so that `/aw-build` builds the slice again. A criterion the app does not meet is recorded as failed and reported, never patched here.
 
 ## Configuration
 
@@ -53,11 +53,11 @@ Read the spec's frontmatter. **Refuse to go on unless `status` is `approved`**, 
 - `implemented`: the spec is built and shipped. To change it, run `/aw-spec`, which sets it back to `draft` for the change and asks for approval again.
 - `superseded`: name the spec its `superseded-by` points to.
 
-Never set or change `status` yourself. Refuse as well while a slice in the Slice plan is not done (its marker is not `[x]`): name those slices and tell the user to build them with `/aw-build`.
+Never set or change `status` yourself. Refuse as well while a slice in the Slice plan is not done (its marker is not `[x]`): name those slices and tell the user to build them with `/aw-build`. Refuse, too, on a protected branch (the base branch or another the VCS adapter names): the results are committed on the spec's work branch, where `/aw-build` committed its slices; tell the user to switch to it.
 
 Then call the Skill tool with "aw-check-spec" and run it on the repo. When it reports a finding on this spec, stop: report the findings; fixing them is a spec change for `/aw-spec`. When it reports `Result: not script-verified`, Node is missing: say so, and go on.
 
-Done when you can name the spec, its criteria, and that every slice is done.
+Done when you can name the spec, its criteria, that every slice is done, and the work branch you are on.
 
 ### 2. Find the verify skill
 
@@ -87,7 +87,7 @@ Done when every criterion has a journey, or a reason why its result will be inco
 
 **Start** the app and **Diagnose** it until it reports healthy, as the verify skill says. When it does not come up, every result is inconclusive: record why, and go to step 5.
 
-Run each journey in turn. Keep for each one the commands you ran, what they returned, and any screenshot or log excerpt, saved under `docs/specs/<slug>/verify/` as `ac-<n>-<what>.<ext>`. Decide its result as **Results** says.
+Run each journey in turn. Keep for each one the commands you ran, what they returned, and any screenshot or log excerpt, taken as the verify skill's Observe section says and saved under `docs/specs/<slug>/verify/` as `ac-<n>-<what>.<ext>`. Decide its result as **Results** says.
 
 **Clean up** after the last journey, as the verify skill says, and also when a journey stops the run: nothing this skill started stays running.
 
@@ -95,7 +95,7 @@ Done when every journey has a result and the app is cleaned up.
 
 ### 5. Record the results
 
-Write one result file per criterion, `docs/specs/<slug>/verify/ac-<n>.md`, replacing the one an earlier run left:
+Write one result file per criterion, `docs/specs/<slug>/verify/ac-<n>.md`, replacing the files an earlier run left for that criterion, its `ac-<n>-<what>.<ext>` files included:
 
 ```markdown
 # AC-<n>: <passed, failed or inconclusive>
@@ -112,17 +112,20 @@ Write one result file per criterion, `docs/specs/<slug>/verify/ac-<n>.md`, repla
 <What the run returned, quoted: a response, an output, a log line, or a link to a saved screenshot. For failed, also what was expected. For inconclusive, why the run could not tell.>
 ```
 
-Then edit the spec's Traceability, and nothing else in it. In each criterion's row, put `` verify: `docs/specs/<slug>/verify/ac-<n>.md` (<result>) `` in place of any `verify:` entry it held, such as the planned `` verify: `docs/specs/<slug>/verify/` `` that `/aw-build` writes. Keep its `test:` and `manual:` entries, separated by `;`.
+Then edit the spec:
 
-Run `aw-check-spec` again. Fix a finding your edits caused; any other finding on this spec is a spec change: report it, and commit nothing.
+- **Traceability:** in each criterion's row, put `` verify: `docs/specs/<slug>/verify/ac-<n>.md` (<result>) `` in place of any `verify:` entry it held, such as the planned `` verify: `docs/specs/<slug>/verify/` `` that `/aw-build` writes. Keep its `test:` and `manual:` entries, separated by `;`.
+- **Failed criteria:** set the done marker of each slice that covers a failed criterion back to `[ ]`.
 
-Done when every criterion has a result file and a `verify:` entry naming it and its result, and the check reports no finding on this spec, or ran by reading only and you said so.
+Leave everything else in the spec as it is. Run `aw-check-spec` again. Fix a finding your edits caused; any other finding on this spec is a spec change: report it, and commit nothing. The check resolves `verify:` paths only at `implemented`, so also check that each result file you named exists.
+
+Done when every criterion has a result file and a `verify:` entry naming it and its result, each failed criterion's slice is unticked, and the check reports no finding on this spec, or ran by reading only and you said so.
 
 ### 6. Commit locally
 
 When the working tree holds changes this skill did not make, ask the user whether to commit, set aside or keep them first: they must not land in this commit. Stay on the spec's work branch; never commit on a protected branch.
 
-Use `commit` for the result files and the spec's Traceability, together, with a message in the VCS adapter's commit convention, such as `test: verify <slug> on the real app (AC-1 passed, AC-2 failed)`. At `draft`, write the draft and tell the user the path. The commit stays local: `push` and `open-review` belong to `/aw-ship`.
+Use `commit` for the result files and the spec's edits, together, with a message in the VCS adapter's commit convention, such as `test: verify <slug> on the real app (AC-1 passed, AC-2 failed)`. At `draft`, write the draft and tell the user the path. The commit stays local: `push` and `open-review` belong to `/aw-ship`.
 
 Done when the results are in one local commit, or in a draft whose path you gave the user.
 
@@ -139,21 +142,21 @@ Report in chat:
 Then name the next skill, and tell the user to run it; this skill never runs it:
 
 - **every criterion passed**, or is inconclusive with `test:` or `manual:` evidence beside it: `/aw-review`;
-- **a criterion failed**: the slice that covers it is not done. Name the slice; the user fixes it through `/aw-build` on that slice, or through `/aw-spec` when the criterion itself is wrong, then runs `/aw-verify` again;
+- **a criterion failed**: the slice that covers it is not done, and its marker is unset again. Name the slice; the user fixes it with `/aw-build`, which builds it again, or with `/aw-spec` when the criterion itself is wrong, then runs `/aw-verify` again;
 - **a criterion is inconclusive with no other evidence**: it needs `test:` or `manual:` evidence, as **Without a verify skill** says for every criterion.
 
 ## Without a verify skill
 
 With no verify skill, no criterion can be proven on the real app here: every criterion needs `test:` or `manual:` evidence instead (ADR 0011). Start nothing. Read the Traceability table and sort the criteria:
 
-- **Covered:** the row holds a `test:` entry or a `manual:` entry with its reason.
-- **Needs evidence:** the row is empty, or holds only `verify:` entries, such as the planned path `/aw-build` writes for a test exception.
+- **Has evidence:** the row holds a `test:` entry whose file mentions the criterion's `AC-n`, or a `manual:` entry with its reason.
+- **Needs evidence:** anything else: the row is empty, holds only `verify:` entries, such as the planned path `/aw-build` writes for a test exception, or names a test file that does not mention the criterion.
 
 Report in chat:
 
 - that the repo has no verify skill at `.claude/skills/verify-<app>/`;
 - each criterion that needs evidence, one line each: `AC-n: needs test: or manual: evidence (the row holds <what it holds>)`;
-- the covered criteria, with their evidence.
+- the criteria that have evidence, with it.
 
 Then name the ways forward, and tell the user to run what they choose:
 
@@ -161,4 +164,4 @@ Then name the ways forward, and tell the user to run what they choose:
 - for a criterion a test can prove: `/aw-build` on the slice that covers it;
 - for one only a person can check: they check it by hand on the running app and tell you what they did and saw.
 
-When the user reports a check by hand, record it in that criterion's row as `manual: <what they checked, what they saw, and why no test covers it>`, beside the entries it keeps, then run `aw-check-spec` and commit as steps 5 and 6 say. Record only what the user reports, never a check nobody made. When every criterion is covered, name `/aw-review` as the next skill.
+When the user reports a check by hand, record it in that criterion's row as `manual: <what they checked, what they saw, and why no test proves it>`, in place of the row's `verify:` entries, which no verify skill can resolve, and beside its `test:` entries. Then run `aw-check-spec` and commit as steps 5 and 6 say. Record only what the user reports, never a check nobody made. When every criterion has evidence, name `/aw-review` as the next skill.

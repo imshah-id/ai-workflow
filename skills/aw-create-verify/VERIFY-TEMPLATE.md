@@ -21,7 +21,7 @@ Start <app>, drive it the way a user does, observe what it does, and clean up. W
 
 ## Observe
 
-<What counts as evidence, by kind of behaviour: a response's status and body, a command's output and exit code, a screenshot (where to save it), a log line. Quote what was observed; never paraphrase it into a pass.>
+<What counts as evidence, by kind of behaviour: a response's status and body, a command's output and exit code, a screenshot (how to take it; the caller decides where to save it), a log line. Quote what was observed; never paraphrase it into a pass.>
 
 ## Clean up
 
@@ -35,7 +35,7 @@ Start <app>, drive it the way a user does, observe what it does, and clean up. W
 
 ## Smoke journey
 
-<The shortest end-to-end run that proves the skill works: Start, Diagnose until healthy, drive one feature from the map, observe its expected result, Clean up. `/aw-create-verify` ran it once before finishing.>
+<The shortest end-to-end run that proves the skill works: Start, Diagnose until healthy, drive one feature from the map, observe its expected result, Clean up. Run it to check the skill still works after the app changes.>
 
 1. <Step, with its command.>
 2. <…>
