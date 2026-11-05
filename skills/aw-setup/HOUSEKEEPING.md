@@ -11,7 +11,7 @@ Four repo-level changes `aw-setup` checks on every run. Each one is idempotent: 
 
 ## `permissions.deny` entries (Claude Code)
 
-Basic protection with no hook scripts (ADR 0009). The agent never force-pushes or skips hooks whatever the settings say; these entries make Claude Code refuse the commands too.
+Basic protection with no hook scripts (ADR 0009). The agent never performs the operations in the `## Never allowed` section of the VCS templates in [`adapters/`](adapters/), whatever the settings say; these entries make Claude Code refuse some of those commands too.
 
 - **Explore:** read `permissions.deny` in `.claude/settings.json`.
 - **Offer** the entries below that are missing. Offer them for `.claude/settings.json` (shared with everyone on the repo); write them to `.claude/settings.local.json` instead if the user prefers to keep them personal.

@@ -334,3 +334,72 @@ test('a checks template missing a check level is reported', () => {
 
   assertOneFinding(runOn(kit), /^skills\/aw-beta\/adapters\/checks\.md: .*"task"/);
 });
+
+// The never-allowed operations are stated in full in the `## Never allowed`
+// section of docs/configuration.md. A file under `skills/` that carries its
+// own copy, such as a VCS adapter template, must match it, up to whitespace.
+
+const NEVER_ALLOWED =
+  'The agent never force-pushes, never deletes a branch, and never passes `--no-verify`.';
+
+function neverAllowedPage(body = NEVER_ALLOWED) {
+  return `# The configuration layer\n\n## Access levels\n\nRead is allowed.\n\n## Never allowed\n\n${body}\n\n## Defaults\n\nNone.\n`;
+}
+
+function neverAllowedCopy(body = NEVER_ALLOWED) {
+  return `# VCS: git\n\n## Never allowed\n\n${body}\n\n## Notes\n\nMore text.\n`;
+}
+
+test('a VCS template whose never-allowed list differs from the configuration page is reported', () => {
+  const kit = validKit();
+  kit['docs/configuration.md'] = neverAllowedPage();
+  kit['skills/aw-beta/adapters/vcs-github.md'] =
+    adapterTemplate('VCS: GitHub', [
+      ['start-branch', 'write'],
+      ['commit', 'write'],
+      ['diff-base', 'read'],
+      ['push', 'draft'],
+      ['open-review', 'draft'],
+      ['merge', 'draft'],
+    ]) + `\n## Never allowed\n\n${NEVER_ALLOWED.replace('deletes', 'renames')}\n`;
+
+  assertOneFinding(
+    runOn(kit),
+    /^skills\/aw-beta\/adapters\/vcs-github\.md: "Never allowed" section differs from docs\/configuration\.md$/,
+  );
+});
+
+test('a never-allowed copy in a skill file that is not a template is also reported', () => {
+  const kit = validKit();
+  kit['docs/configuration.md'] = neverAllowedPage();
+  kit['skills/aw-alpha/SKILL.md'] += `\n## Never allowed\n\n${NEVER_ALLOWED.replace('never passes', 'avoids')}\n`;
+
+  assertOneFinding(
+    runOn(kit),
+    /^skills\/aw-alpha\/SKILL\.md: "Never allowed" section differs from docs\/configuration\.md$/,
+  );
+});
+
+test('a never-allowed copy with no configuration page to compare against is reported', () => {
+  const kit = validKit();
+  kit['skills/aw-beta/adapters/notes.md'] = neverAllowedCopy();
+
+  assertOneFinding(runOn(kit), /^docs\/configuration\.md: .*"Never allowed".*skills\/aw-beta\/adapters\/notes\.md/);
+});
+
+test('a never-allowed copy with no matching section on the configuration page is reported', () => {
+  const kit = validKit();
+  kit['docs/configuration.md'] = neverAllowedPage().replace('## Never allowed', '## Forbidden');
+  kit['skills/aw-beta/adapters/notes.md'] = neverAllowedCopy();
+
+  assertOneFinding(runOn(kit), /^docs\/configuration\.md: .*"Never allowed".*skills\/aw-beta\/adapters\/notes\.md/);
+});
+
+test('never-allowed copies that match the configuration page up to whitespace pass', () => {
+  const kit = validKit();
+  kit['docs/configuration.md'] = neverAllowedPage();
+  kit['skills/aw-beta/adapters/notes.md'] = neverAllowedCopy(NEVER_ALLOWED.replace(', never', ',\n  never'));
+  kit['skills/aw-alpha/SKILL.md'] += `\n## Never allowed\n\n\n${NEVER_ALLOWED}  \n`;
+
+  assertNoFindings(runOn(kit));
+});

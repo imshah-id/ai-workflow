@@ -367,9 +367,47 @@ function checkAdapterTemplates(dir) {
   return findings;
 }
 
+// The prose of the `## <heading>` section, up to the next heading of level 1
+// or 2; null when there is no such heading.
+function sectionBody(text, heading) {
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((line) => new RegExp(`^##\\s+${heading}\\s*$`).test(line));
+  if (start === -1) return null;
+  const end = lines.findIndex((line, index) => index > start && /^#{1,2}\s/.test(line));
+  return lines.slice(start + 1, end === -1 ? undefined : end).join('\n');
+}
+
+const collapseWhitespace = (body) => body.replace(/\s+/g, ' ').trim();
+
+const CONFIGURATION_PAGE = 'docs/configuration.md';
+const NEVER_ALLOWED = 'Never allowed';
+
+// The configuration page states the never-allowed operations in full. A skill
+// installed through `npx skills` cannot read it, so a file under `skills/`
+// may carry its own `## Never allowed` copy, which must match it.
+function checkNeverAllowed(dir) {
+  const copies = kitFiles(dir)
+    .filter((path) => path.startsWith('skills/') && path.endsWith('.md'))
+    .sort()
+    .map((path) => ({ path, body: sectionBody(readFileSync(join(dir, path), 'utf8'), NEVER_ALLOWED) }))
+    .filter(({ body }) => body !== null);
+  if (copies.length === 0) return [];
+  const page = join(dir, CONFIGURATION_PAGE);
+  const source = existsSync(page) ? sectionBody(readFileSync(page, 'utf8'), NEVER_ALLOWED) : null;
+  if (source === null) {
+    const paths = copies.map(({ path }) => path).join(', ');
+    const problem = existsSync(page) ? `has no "## ${NEVER_ALLOWED}" section` : 'file is missing';
+    return [`${CONFIGURATION_PAGE}: ${problem}; it is the source for the "${NEVER_ALLOWED}" section in ${paths}`];
+  }
+  return copies
+    .filter(({ body }) => collapseWhitespace(body) !== collapseWhitespace(source))
+    .map(({ path }) => `${path}: "${NEVER_ALLOWED}" section differs from ${CONFIGURATION_PAGE}`);
+}
+
 function validate(dir) {
   const findings = checkSkills(dir);
   findings.push(...checkAdapterTemplates(dir));
+  findings.push(...checkNeverAllowed(dir));
   const plugin = readJson(dir, PLUGIN_MANIFEST);
   const marketplace = readJson(dir, MARKETPLACE_MANIFEST);
   if (plugin.finding) findings.push(plugin.finding);
